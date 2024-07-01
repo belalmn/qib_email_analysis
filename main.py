@@ -1,23 +1,30 @@
 from typing import List, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field
-from src.extract.pst_message_extractor import PstMessageExtractor, MessageChunk
-from src.transform.primary_features import PrimaryFeaturesExtractor
-from src.transform.derived_features import DerivedFeaturesExtractor
-from src.load.data_loader import DataLoader
+from src.extract.pst_extractor import PstMessageExtractor, MessageChunk
+from src.transform.primary_features import PrimaryFeaturesExtractor, PrimaryFeatures
+#from src.transform.derived_features import DerivedFeaturesExtractor
+#from src.load.data_loader import DataLoader
 
 class EmailMessage(BaseModel):
-    message_id: str
+    identifier: str
     subject: str
+    sender_name: str
+    transport_headers: str
+    from_address: str = None
+    to_address: str = None
+    cc_address: str = None
+    bcc_address: str = None
+    creation_time: datetime
+    submit_time: datetime
+    delivery_time: datetime
+    attachment_count: int
     body: str
-    sender: str
-    recipients: List[str]
-    date: datetime
-    attachments: List[Dict[str, Any]]
-    folder_path: str
+    folder_name: str
+    # Derived features
     flag: str = "normal"
-    language: str = ''
-    thread_id: str = ''
+    language: str = None
+    thread_id: str = None
 
 class ProcessedBatch(BaseModel):
     batch_id: str
@@ -30,7 +37,7 @@ class ETLConfig(BaseModel):
     chunk_size: int = Field(default=100, ge=1)
 
 def main() -> None:
-    config: ETLConfig = ETLConfig.model_validate_json('config/config.json')
+    config: ETLConfig = ETLConfig.parse_file('config.json')
     extractor: PstMessageExtractor = PstMessageExtractor(config.input_pst_path, config.chunk_size)
     primary_extractor: PrimaryFeaturesExtractor = PrimaryFeaturesExtractor()
     derived_extractor: DerivedFeaturesExtractor = DerivedFeaturesExtractor()
@@ -40,11 +47,13 @@ def main() -> None:
         processed_messages: List[EmailMessage] = []
         
         for message in chunk.messages:
-            primary_features: Dict[str, Any] = primary_extractor.extract(message)
-            derived_features: Dict[str, Any] = derived_extractor.extract(primary_features)
+            primary_features: PrimaryFeatures = primary_extractor.extract(message, chunk.folder_path)
+            #derived_features: Dict[str, Any] = derived_extractor.extract(primary_features.dict())
             
-            full_features: Dict[str, Any] = {**primary_features, **derived_features, 'folder_path': chunk.folder_path}
-            email_message: EmailMessage = EmailMessage(**full_features)
+            email_message = EmailMessage(
+                **primary_features.model_dump(),
+                #**derived_features
+            )
             
             processed_messages.append(email_message)
         
@@ -53,7 +62,7 @@ def main() -> None:
             processed_at=datetime.now(),
             messages=processed_messages
         )
-        loader.load(processed_batch)
+        #loader.load(processed_batch)
 
 if __name__ == "__main__":
     main()
