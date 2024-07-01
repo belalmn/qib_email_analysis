@@ -22,9 +22,9 @@ class EmailMessage(BaseModel):
     body: str
     folder_name: str
     # Derived features
-    flag: str = "normal"
-    language: str = None
-    thread_id: str = None
+    # flag: str = "normal"
+    # language: str = None
+    # thread_id: str = None
 
 class ProcessedBatch(BaseModel):
     batch_id: str
@@ -40,8 +40,8 @@ def main() -> None:
     config: ETLConfig = ETLConfig.parse_file('config.json')
     extractor: PstMessageExtractor = PstMessageExtractor(config.input_pst_path, config.chunk_size)
     primary_extractor: PrimaryFeaturesExtractor = PrimaryFeaturesExtractor()
-    derived_extractor: DerivedFeaturesExtractor = DerivedFeaturesExtractor()
-    loader: DataLoader = DataLoader(config.output_directory)
+    #derived_extractor: DerivedFeaturesExtractor = DerivedFeaturesExtractor()
+    #loader: DataLoader = DataLoader(config.output_directory)
 
     for chunk in extractor.extract_messages():
         processed_messages: List[EmailMessage] = []
