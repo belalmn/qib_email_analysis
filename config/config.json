@@ -1,0 +1,5 @@
+{
+    "input_pst_path": "./data/raw/emails.pst",
+    "output_directory": "./data/processed/",
+    "chunk_size": 250
+}

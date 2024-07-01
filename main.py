@@ -1,20 +1,21 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 from src.extract.pst_extractor import PstMessageExtractor, MessageChunk
 from src.transform.primary_features import PrimaryFeaturesExtractor, PrimaryFeatures
 #from src.transform.derived_features import DerivedFeaturesExtractor
 #from src.load.data_loader import DataLoader
+from os import PathLike
 
 class EmailMessage(BaseModel):
     identifier: str
     subject: str
     sender_name: str
     transport_headers: str
-    from_address: str = None
-    to_address: str = None
-    cc_address: str = None
-    bcc_address: str = None
+    from_address: Optional[str] = None
+    to_address: Optional[str] = None
+    cc_address: Optional[str] = None
+    bcc_address: Optional[str] = None
     creation_time: datetime
     submit_time: datetime
     delivery_time: datetime
@@ -32,12 +33,12 @@ class ProcessedBatch(BaseModel):
     messages: List[EmailMessage]
 
 class ETLConfig(BaseModel):
-    input_pst_path: str
-    output_directory: str
+    input_pst_path: PathLike
+    output_directory: PathLike
     chunk_size: int = Field(default=100, ge=1)
 
 def main() -> None:
-    config: ETLConfig = ETLConfig.parse_file('config.json')
+    config: ETLConfig = ETLConfig.model_validate_json('config.json')
     extractor: PstMessageExtractor = PstMessageExtractor(config.input_pst_path, config.chunk_size)
     primary_extractor: PrimaryFeaturesExtractor = PrimaryFeaturesExtractor()
     #derived_extractor: DerivedFeaturesExtractor = DerivedFeaturesExtractor()

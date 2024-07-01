@@ -1,14 +1,15 @@
 import pypff
 from typing import Iterator, List, Any
 from pydantic import BaseModel, Field
+from os import PathLike
 
 class MessageChunk(BaseModel):
     messages: List[Any] = Field(description="List of pypff message objects") # TODO: Possibly replace with more optimized data structure (stack, queue, etc.)
     folder_path: str = Field(description="Path of the folder containing the messages")
 
 class PstMessageExtractor:
-    def __init__(self, file_path: str, chunk_size: int = 100):
-        self.file_path: str = file_path
+    def __init__(self, file_path: PathLike, chunk_size: int = 100):
+        self.file_path: PathLike = file_path
         self.chunk_size: int = chunk_size
 
     def extract_messages(self) -> Iterator[MessageChunk]:
