@@ -1,11 +1,15 @@
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from src.extract.pst_extractor import PstMessageExtractor, MessageChunk
 from src.transform.primary_features import PrimaryFeaturesExtractor, PrimaryFeatures
 #from src.transform.derived_features import DerivedFeaturesExtractor
 #from src.load.data_loader import DataLoader
-from os import PathLike
+from os import path
+import json
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 class EmailMessage(BaseModel):
     identifier: str
@@ -33,12 +37,31 @@ class ProcessedBatch(BaseModel):
     messages: List[EmailMessage]
 
 class ETLConfig(BaseModel):
-    input_pst_path: PathLike
-    output_directory: PathLike
-    chunk_size: int = Field(default=100, ge=1)
+    model_config = ConfigDict(strict=True)
+    input_pst_path: str = Field(default="./data/raw/emails.pst")
+    output_directory: str = Field(default="./data/processed/")
+    chunk_size: int = Field(default=250, ge=1)
+    
+    def normalize_paths(self):
+        self.input_pst_path = path.normcase(self.input_pst_path)
+        self.output_directory = path.normcase(self.output_directory)
+    
+    @classmethod
+    def from_json(cls, config_path: str) -> 'ETLConfig':
+        try:
+            with open(config_path, "r") as config_file:
+                config_json: str = config_file.read()
+                config = cls.model_validate_json(config_json)
+                config.normalize_paths()
+                return config
+        except FileNotFoundError as e:
+            logging.warning(f"Config file not found: {e}, using default config")
+            config = cls()
+            config.normalize_paths()
+            return config
 
 def main() -> None:
-    config: ETLConfig = ETLConfig.model_validate_json('config.json')
+    config: ETLConfig = ETLConfig.from_json("config.json")
     extractor: PstMessageExtractor = PstMessageExtractor(config.input_pst_path, config.chunk_size)
     primary_extractor: PrimaryFeaturesExtractor = PrimaryFeaturesExtractor()
     #derived_extractor: DerivedFeaturesExtractor = DerivedFeaturesExtractor()
