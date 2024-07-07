@@ -1,67 +1,21 @@
-from typing import List, Dict, Any, Optional
-from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
-from src.extract.pst_extractor import PstMessageExtractor, MessageChunk
-from src.transform.primary_features import PrimaryFeaturesExtractor, PrimaryFeatures
-#from src.transform.derived_features import DerivedFeaturesExtractor
-#from src.load.data_loader import DataLoader
 from os import path
 import json
 import logging
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+
+from pydantic import BaseModel
+
+from src.utils.config import Config
+from src.extract.pst_extractor import PstMessageExtractor, MessageChunk, EmailMessage, ProcessedBatch
+from src.transform.primary_features import PrimaryFeaturesExtractor, PrimaryFeatures
+#from src.transform.derived_features import DerivedFeaturesExtractor
+#from src.load.data_loader import DataLoader
 
 logging.basicConfig(level=logging.INFO)
 
-class EmailMessage(BaseModel):
-    identifier: str
-    subject: str
-    sender_name: str
-    transport_headers: str
-    from_address: Optional[str] = None
-    to_address: Optional[str] = None
-    cc_address: Optional[str] = None
-    bcc_address: Optional[str] = None
-    creation_time: datetime
-    submit_time: datetime
-    delivery_time: datetime
-    attachment_count: int
-    body: str
-    folder_name: str
-    # Derived features
-    # flag: str = "normal"
-    # language: str = None
-    # thread_id: str = None
-
-class ProcessedBatch(BaseModel):
-    batch_id: str
-    processed_at: datetime
-    messages: List[EmailMessage]
-
-class ETLConfig(BaseModel):
-    model_config = ConfigDict(strict=True)
-    input_pst_path: str = Field(default="./data/raw/emails.pst")
-    output_directory: str = Field(default="./data/processed/")
-    chunk_size: int = Field(default=250, ge=1)
-    
-    def normalize_paths(self):
-        self.input_pst_path = path.normcase(self.input_pst_path)
-        self.output_directory = path.normcase(self.output_directory)
-    
-    @classmethod
-    def from_json(cls, config_path: str) -> 'ETLConfig':
-        try:
-            with open(config_path, "r") as config_file:
-                config_json: str = config_file.read()
-                config = cls.model_validate_json(config_json)
-                config.normalize_paths()
-                return config
-        except FileNotFoundError as e:
-            logging.warning(f"Config file not found: {e}, using default config")
-            config = cls()
-            config.normalize_paths()
-            return config
-
 def main() -> None:
-    config: ETLConfig = ETLConfig.from_json("config.json")
+    config: Config = Config.from_json("config.json")
     extractor: PstMessageExtractor = PstMessageExtractor(config.input_pst_path, config.chunk_size)
     primary_extractor: PrimaryFeaturesExtractor = PrimaryFeaturesExtractor()
     #derived_extractor: DerivedFeaturesExtractor = DerivedFeaturesExtractor()
