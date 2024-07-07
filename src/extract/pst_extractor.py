@@ -6,22 +6,8 @@ import pypff
 from pydantic import BaseModel, Field
 
 from src.utils.config import Config
-from src.utils.pypff_utils import get_folders_from_pst
-
-class EmailMessage(BaseModel):
-    identifier: str
-    subject: Optional[str]
-    sender_name: str
-    from_address: Optional[str]
-    to_address: Optional[Union[List[str], str]]
-    cc_address: Optional[Union[List[str], str]]
-    bcc_address: Optional[Union[List[str], str]]
-    creation_time: datetime
-    submit_time: datetime
-    delivery_time: datetime
-    attachment_count: int
-    body: str = Field(..., max_length=1000)  # Truncate to 1000 characters
-    folder_name: str
+from src.utils.pypff_folder_utils import get_folders_from_pst
+from src.transform.primary_features import PrimaryEmailFeatures
 
 
 class MessageChunk(BaseModel):
@@ -32,7 +18,7 @@ class MessageChunk(BaseModel):
 class ProcessedBatch(BaseModel):
     batch_id: str
     processed_at: datetime
-    messages: List[EmailMessage]
+    messages: List[PrimaryEmailFeatures]
 
 
 class PstMessageExtractor:

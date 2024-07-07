@@ -1,9 +1,9 @@
+import email
 import logging
 from typing import Any, Dict, Iterator, List
 
 import pypff
 from pydantic import BaseModel, Field
-
 
 def get_folders_from_pst(file_path: str) -> Dict[str, pypff.folder]:
     pst: pypff.file = _open_pst_file(file_path)
@@ -12,7 +12,6 @@ def get_folders_from_pst(file_path: str) -> Dict[str, pypff.folder]:
     outlook_data_file: pypff.folder = _get_outlook_data_file_from_pst(pst)
     folders: Dict[str, pypff.folder] = _get_pypff_folders(outlook_data_file)
     return folders
-
 
 def _get_outlook_data_file_from_pst(pst: pypff.file) -> pypff.folder:
     root: pypff.folder = pst.get_root_folder()
