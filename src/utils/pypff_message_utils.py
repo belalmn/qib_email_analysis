@@ -1,69 +1,126 @@
 import email
 import logging
-from typing import Any, Dict, Iterator, List
+import re
+from datetime import datetime, timedelta, timezone
+from email.utils import getaddresses
+from enum import Enum
+from typing import Any, Dict, List, Union
 
 import pypff
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+
+
+class ValueType(Enum):
+    GENERIC_MESSAGE_VALUE = "message"
+    GENERIC_HEADER_VALUE = "general_header"
+    ADDRESS = "address_header"
+    TIMESTAMP = "timestamp"
+
+
+class ValueInfo(BaseModel):
+    pypff_key: str
+    value_type: ValueType = ValueType.GENERIC_MESSAGE_VALUE
+    default_value: Any = None
 
 
 class PypffMessage:
     def __init__(self, message: pypff.message):
         self.message: pypff.message = message
-        self.headers: Dict[str, Any] = self._get_headers()
+        self.headers: Dict[str, Any] = self._headers_from_message()
 
-    _message_key_map: Dict[str, str] = {
-        "identifier": "identifier",
-        "subject": "conversation_topic",
-        "sender_name": "sender_name",
-        "headers": "transport_headers",
-        "creation_time": "creation_time",
-        "submit_time": "client_submit_time",
-        "delivery_time": "delivery_time",
-        "body": "plain_text_body",
-    }
-
-    _header_key_map: Dict[str, str] = {
-        "from_address": "From",
-        "to_address": "To",
-        "cc_address": "CC",
-        "bcc_address": "BCC",
-    }
-
-    _default_email_values: Dict[str, Any] = {
-        "identifier": None,
-        "subject": "",
-        "sender_name": "",
-        "headers": "",
-        "from_address": None,
-        "to_address": None,
-        "cc_address": None,
-        "bcc_address": None,
-        "creation_time": None,
-        "submit_time": None,
-        "delivery_time": None,
-        "body": "",
-    }
-
-    def get_value(self, key: str) -> Any:
-        if key in self._header_key_map:
-            return self._get_header_value(key)
-        elif key in self._message_key_map:
-            return self._get_message_value(key)
-        else:
-            logging.warning(f"Key {key} is not a valid message or header key")
-            return None
-
-    def _get_headers(self) -> Dict[str, Any]:
+    def _headers_from_message(self) -> Dict[str, Any]:
         headers = self.message.transport_headers or ""
         return dict(email.message_from_string(headers).items())
 
-    def _get_header_value(self, key: str) -> str:
-        default_value = self._default_email_values.get(key)
-        return self.headers.get(self._header_key_map[key], default_value)
-
-    def _get_message_value(self, key: str) -> Any:
+    def _generic_value_from_message(self, value_info: ValueInfo) -> Any:
         try:
-            return getattr(self.message, self._message_key_map[key])
+            return getattr(self.message, value_info.pypff_key)
         except Exception as e:
-            logging.error(f"Error getting value for key {key}: {e}")
-            return self._default_email_values.get(key)
+            logging.error(f"Error getting value for key {value_info.pypff_key}: {e}")
+            return value_info.default_value
+
+    def _generic_value_from_header(self, value_info: ValueInfo) -> Any:
+        return self.headers.get(value_info.pypff_key, value_info.default_value)
+
+    def _address_from_header(self, value_info: ValueInfo) -> Union[str, List[str]]:
+        header_value = self.headers.get(value_info.pypff_key, value_info.default_value)
+        if header_value is not None:
+            header_value = re.sub(r'"\s*\n\s*"', " ", header_value)
+            addresses = getaddresses([header_value])
+            logging.info(f"Retreived addresses {addresses} from header {header_value}")
+            valid_addresses = []
+
+            for name, address in addresses:
+                if address.strip():
+                    valid_addresses.append(address.strip())
+
+            if not valid_addresses:
+                logging.warning(
+                    fr"No valid addresses found in header {value_info.pypff_key}. Header value: {header_value}"
+                )
+                return value_info.default_value
+            elif len(valid_addresses) == 1:
+                logging.info(
+                    fr"Found single valid address {valid_addresses[0]} for key {value_info.pypff_key}. Header value: {header_value}"
+                )
+                return valid_addresses[0]
+
+            logging.info(
+                fr"Found {len(valid_addresses)} valid addresses for key {value_info.pypff_key}. Header value: {header_value}"
+            )
+            return valid_addresses
+
+        return value_info.default_value
+
+    def _timestamp_from_message(self, value_info: ValueInfo) -> Any:
+        match value_info.pypff_key:
+            case "creation_time":
+                timestamp = self.message.get_creation_time_as_integer()
+            case "client_submit_time":
+                timestamp = self.message.get_client_submit_time_as_integer()
+            case "delivery_time":
+                timestamp = self.message.get_delivery_time_as_integer()
+            case _:
+                logging.error(f"Invalid timestamp key {value_info.pypff_key}")
+                return value_info.default_value
+        return self._integer_time_as_datetime(timestamp)
+
+    @staticmethod
+    def _integer_time_as_datetime(filetime: int) -> Union[datetime, None]:
+        # Pypff integer time follows the FILETIME format, which is 100ns intervals since 1601-01-01
+        if filetime:
+            return datetime(1601, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=filetime // 10)
+        return None
+
+    _handler_map = {
+        ValueType.GENERIC_MESSAGE_VALUE: _generic_value_from_message,
+        ValueType.GENERIC_HEADER_VALUE: _generic_value_from_header,
+        ValueType.ADDRESS: _address_from_header,
+        ValueType.TIMESTAMP: _timestamp_from_message,
+    }
+
+    _value_map: Dict[str, ValueInfo] = {
+        "identifier": ValueInfo(pypff_key="identifier"),
+        "subject": ValueInfo(pypff_key="conversation_topic"),
+        "sender_name": ValueInfo(pypff_key="sender_name"),
+        "headers": ValueInfo(pypff_key="transport_headers"),
+        "creation_time": ValueInfo(pypff_key="creation_time", value_type=ValueType.TIMESTAMP),
+        "submit_time": ValueInfo(pypff_key="client_submit_time", value_type=ValueType.TIMESTAMP),
+        "delivery_time": ValueInfo(pypff_key="delivery_time", value_type=ValueType.TIMESTAMP),
+        "body": ValueInfo(pypff_key="plain_text_body"),
+        "from_address": ValueInfo(pypff_key="From", value_type=ValueType.ADDRESS),
+        "to_address": ValueInfo(pypff_key="To", value_type=ValueType.ADDRESS),
+        "cc_address": ValueInfo(pypff_key="CC", value_type=ValueType.ADDRESS),
+        "bcc_address": ValueInfo(pypff_key="BCC", value_type=ValueType.ADDRESS),
+        "in_reply_to": ValueInfo(pypff_key="In-Reply-To", value_type=ValueType.GENERIC_HEADER_VALUE),
+        "message_id": ValueInfo(pypff_key="Message-ID", value_type=ValueType.GENERIC_HEADER_VALUE),
+    }
+
+    def get_value(self, key: str) -> Any:
+        if key in self._value_map:
+            value_info = self._value_map[key]
+            handler = self._handler_map[value_info.value_type]
+            return handler(self, value_info)
+        else:
+            logging.warning(f"Key {key} is not a valid message or header key")
+            return None
