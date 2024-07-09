@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import List, Optional, Union
 
@@ -29,7 +30,7 @@ class MessageEnricher:
     def __init__(self, parsed_message: ParsedMessage):
         self.parsed_message = parsed_message
 
-    def enrich(self) -> EnrichedMessage:
+    def _enrich(self) -> EnrichedMessage:
         self.enriched_message = EnrichedMessage(
             **self.parsed_message.model_dump(),
             first_in_thread=self._is_first_in_thread(),
@@ -40,6 +41,15 @@ class MessageEnricher:
             from_internal_domain=self._is_from_internal_domain(),
             subject_prefix=self._get_subject_prefix(),
         )
+        return self.enriched_message
+
+
+    def enrich(self) -> EnrichedMessage:
+        try:
+            self.enriched_message = self._enrich()
+        except ValidationError as e:
+            logging.error(f"Error enriching message {self.parsed_message.identifier}: {e}")
+            raise
         return self.enriched_message
 
     def _is_first_in_thread(self) -> Optional[bool]:
