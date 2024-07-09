@@ -4,14 +4,8 @@ from datetime import datetime
 from typing import List, Optional, Union
 
 import pypff
-from pydantic import (
-    BaseModel,
-    Field,
-    ValidationError,
-    ValidationInfo,
-    field_validator,
-    model_validator,
-)
+from pydantic import BaseModel, Field, field_validator, model_validator
+from pyisemail import is_email
 from typing_extensions import Self
 
 from src.utils.pypff_message_utils import PypffMessage
@@ -40,31 +34,14 @@ class ParsedMessage(BaseModel):
     def validate_email(cls, v: Optional[Union[str, List[str]]]) -> Optional[Union[str, List[str]]]:
         if v is None:
             return v
-        email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-        if isinstance(v, str):
-            if not re.match(email_regex, v):
-                raise ValueError(f"Invalid email address: {v}")
-        elif isinstance(v, list):
+        if isinstance(v, list):
             for email in v:
-                if not re.match(email_regex, email):
-                    raise ValueError(f"Invalid email address in list: {email}")
+                if not is_email(email):
+                    raise ValueError(f"Invalid email address: {email}")
+        else:
+            if not is_email(v):
+                raise ValueError(f"Invalid email address: {v}")
         return v
-
-    # @model_validator(mode="after")
-    # def validate_time_order(self) -> Self:
-    #     if self.submit_time > self.delivery_time:
-    #         raise ValueError(
-    #             f"Delivery time {self.delivery_time} cannot be before submit time {self.submit_time}"
-    #         )
-    #     if self.submit_time > self.creation_time:
-    #         raise ValueError(
-    #             f"Creation time {self.creation_time} cannot be before submit time {self.submit_time}"
-    #         )
-    #     if self.delivery_time > self.creation_time:
-    #         raise ValueError(
-    #             f"Creation time {self.creation_time} cannot be before delivery time {self.delivery_time}"
-    #         )
-    #     return self
 
     @field_validator("body")
     @classmethod
@@ -76,12 +53,6 @@ class MessageParser:
     @staticmethod
     def extract(message: pypff.message, folder_name: str) -> ParsedMessage:
         message = PypffMessage(message)
-
-        try:
-            id = message.get_value("identifier")
-            message_id = message.get_value("message_id")
-        except Exception as e:
-            pass
 
         try:
             return ParsedMessage(

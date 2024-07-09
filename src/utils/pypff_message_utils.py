@@ -15,6 +15,7 @@ class ValueType(Enum):
     GENERIC_HEADER_VALUE = "general_header"
     ADDRESS = "address_header"
     TIMESTAMP = "timestamp"
+    MESSAGE_ID = "message_id"
 
 
 class ValueInfo(BaseModel):
@@ -42,12 +43,11 @@ class PypffMessage:
     def _generic_value_from_header(self, value_info: ValueInfo) -> Any:
         return self.headers.get(value_info.pypff_key, value_info.default_value)
 
-    def _address_from_header(self, value_info: ValueInfo) -> Union[str, List[str]]:
+    def _address_from_header(self, value_info: ValueInfo) -> Any:
         header_value = self.headers.get(value_info.pypff_key, value_info.default_value)
         if header_value is not None:
-            header_value = re.sub(r'"\s*\n\s*"', " ", header_value)
+            header_value = re.sub(r"\r\n\s*", " ", header_value).lower()
             addresses = getaddresses([header_value])
-            logging.info(f"Retreived addresses {addresses} from header {header_value}")
             valid_addresses = []
 
             for name, address in addresses:
@@ -56,19 +56,19 @@ class PypffMessage:
 
             if not valid_addresses:
                 logging.warning(
-                    fr"No valid addresses found in header {value_info.pypff_key}. Header value: {header_value}"
+                    rf"No valid addresses found in header {value_info.pypff_key}. Header value: {header_value}"
                 )
                 return value_info.default_value
             elif len(valid_addresses) == 1:
                 logging.info(
-                    fr"Found single valid address {valid_addresses[0]} for key {value_info.pypff_key}. Header value: {header_value}"
+                    rf"Found single valid address {valid_addresses[0]} for key {value_info.pypff_key}. Header value: {header_value}"
                 )
                 return valid_addresses[0]
-
-            logging.info(
-                fr"Found {len(valid_addresses)} valid addresses for key {value_info.pypff_key}. Header value: {header_value}"
-            )
-            return valid_addresses
+            else:
+                logging.info(
+                    rf"Found {len(valid_addresses)} valid addresses for key {value_info.pypff_key}. Header value: {header_value}"
+                )
+                return valid_addresses
 
         return value_info.default_value
 
@@ -84,19 +84,19 @@ class PypffMessage:
                 logging.error(f"Invalid timestamp key {value_info.pypff_key}")
                 return value_info.default_value
         return self._integer_time_as_datetime(timestamp)
-
-    @staticmethod
-    def _integer_time_as_datetime(filetime: int) -> Union[datetime, None]:
-        # Pypff integer time follows the FILETIME format, which is 100ns intervals since 1601-01-01
-        if filetime:
-            return datetime(1601, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=filetime // 10)
-        return None
+    
+    def _message_id_from_header(self, value_info: ValueInfo) -> Any:
+        message_id = self.headers.get(value_info.pypff_key, value_info.default_value)
+        if message_id:
+            return message_id.strip("<>")
+        return value_info.default_value
 
     _handler_map = {
         ValueType.GENERIC_MESSAGE_VALUE: _generic_value_from_message,
         ValueType.GENERIC_HEADER_VALUE: _generic_value_from_header,
         ValueType.ADDRESS: _address_from_header,
         ValueType.TIMESTAMP: _timestamp_from_message,
+        ValueType.MESSAGE_ID: _message_id_from_header,
     }
 
     _value_map: Dict[str, ValueInfo] = {
@@ -113,7 +113,7 @@ class PypffMessage:
         "cc_address": ValueInfo(pypff_key="CC", value_type=ValueType.ADDRESS),
         "bcc_address": ValueInfo(pypff_key="BCC", value_type=ValueType.ADDRESS),
         "in_reply_to": ValueInfo(pypff_key="In-Reply-To", value_type=ValueType.GENERIC_HEADER_VALUE),
-        "message_id": ValueInfo(pypff_key="Message-ID", value_type=ValueType.GENERIC_HEADER_VALUE),
+        "message_id": ValueInfo(pypff_key="Message-ID", value_type=ValueType.MESSAGE_ID),
     }
 
     def get_value(self, key: str) -> Any:
@@ -124,3 +124,10 @@ class PypffMessage:
         else:
             logging.warning(f"Key {key} is not a valid message or header key")
             return None
+
+    @staticmethod
+    def _integer_time_as_datetime(filetime: int) -> Union[datetime, None]:
+        # Pypff integer time follows the FILETIME format, which is 100ns intervals since 1601-01-01
+        if filetime:
+            return datetime(1601, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=filetime // 10)
+        return None
