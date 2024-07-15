@@ -55,19 +55,10 @@ class PypffMessage:
                     valid_addresses.append(address.strip())
 
             if not valid_addresses:
-                logging.warning(
-                    rf"No valid addresses found in header {value_info.pypff_key}. Header value: {header_value}"
-                )
                 return value_info.default_value
             elif len(valid_addresses) == 1:
-                logging.info(
-                    rf"Found single valid address {valid_addresses[0]} for key {value_info.pypff_key}. Header value: {header_value}"
-                )
                 return valid_addresses[0]
             else:
-                logging.info(
-                    rf"Found {len(valid_addresses)} valid addresses for key {value_info.pypff_key}. Header value: {header_value}"
-                )
                 return valid_addresses
 
         return value_info.default_value
@@ -84,7 +75,7 @@ class PypffMessage:
                 logging.error(f"Invalid timestamp key {value_info.pypff_key}")
                 return value_info.default_value
         return self._integer_time_as_datetime(timestamp)
-    
+
     def _message_id_from_header(self, value_info: ValueInfo) -> Any:
         message_id = self.headers.get(value_info.pypff_key, value_info.default_value)
         if message_id:

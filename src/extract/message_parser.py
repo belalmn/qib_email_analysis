@@ -10,8 +10,6 @@ from typing_extensions import Self
 
 from src.utils.pypff_message_utils import PypffMessage
 
-MAX_BODY_LENGTH = 10000
-
 
 class ParsedMessage(BaseModel):
     folder_name: str
@@ -21,7 +19,7 @@ class ParsedMessage(BaseModel):
     creation_time: datetime
     submit_time: datetime
     delivery_time: datetime
-    body: Optional[str] = Field(max_length=MAX_BODY_LENGTH)
+    body: Optional[str]
     from_address: str
     to_address: Optional[Union[List[str], str]]
     cc_address: Optional[Union[List[str], str]]
@@ -42,11 +40,6 @@ class ParsedMessage(BaseModel):
             if not is_email(v):
                 raise ValueError(f"Invalid email address: {v}")
         return v
-
-    @field_validator("body")
-    @classmethod
-    def truncate_body(cls, v: str) -> str:
-        return v[:MAX_BODY_LENGTH] if v else ""
 
 
 class MessageParser:
