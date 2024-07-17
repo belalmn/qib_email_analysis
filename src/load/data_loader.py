@@ -46,10 +46,10 @@ class Message(Base):
     creation_time = Column(DateTime, nullable=False)
     submit_time = Column(DateTime, nullable=False)
     delivery_time = Column(DateTime, nullable=False)
-    sender_name = Column(String(255))
+    sender_name = Column(String(255, collation="utf8mb4_general_ci"))
     in_reply_to = Column(String(255))
-    subject = Column(Text(collation='utf8mb4_general_ci'))
-    body = Column(LONGTEXT(collation='utf8mb4_general_ci'))
+    subject = Column(Text(collation="utf8mb4_general_ci"))
+    body = Column(LONGTEXT(collation="utf8mb4_general_ci"))
     first_in_thread = Column(Boolean)
     previous_message_id = Column(String(255))
     domain = Column(String(255))
@@ -81,11 +81,11 @@ class DataLoader:
 
     def clear_tables(self):
         Base.metadata.drop_all(self.engine)
-        logging.info("Database tables cleared successfully")
+        logging.debug("Database tables cleared successfully")
 
     def create_tables(self):
         Base.metadata.create_all(self.engine)
-        logging.info("Database tables created successfully")
+        logging.debug("Database tables created successfully")
 
     def load(self, enriched_messages: List[EnrichedMessage]):
         session = self.Session()
@@ -121,7 +121,7 @@ class DataLoader:
                 self._add_recipients(session, db_message, message.bcc_address, "bcc")
 
             session.commit()
-            logging.info(f"Successfully loaded {len(enriched_messages)} messages into the database")
+            logging.debug(f"Successfully loaded {len(enriched_messages)} messages into the database")
         except Exception as e:
             session.rollback()
             logging.error(f"Error while loading data into database: {e}")
@@ -153,13 +153,28 @@ class DataLoader:
             tables = [Folder, Address, Message, Recipient]
             for table in tables:
                 df = pd.read_sql(session.query(table).statement, session.bind)
-                df.to_csv(f"{output_path}/{table.__tablename__}.csv", index=False)
+                df.to_csv(f"{output_path}/{table.__tablename__}.csv", index=False, encoding="utf-8")
                 logging.info(f"Exported {table.__tablename__} to CSV")
         except Exception as e:
             logging.error(f"Error while exporting data to CSV: {e}")
         finally:
             session.close()
 
+    def export_to_excel(self, output_path: str):
+        session = self.Session()
+        try:
+            tables = [Folder, Address, Message, Recipient]
+            with pd.ExcelWriter(f"{output_path}/database_dump.xlsx") as writer:
+                for table in tables:
+                    df = pd.read_sql(session.query(table).statement, session.bind)
+                    df.to_excel(writer, sheet_name=table.__tablename__, index=False, encoding="utf-8")
+                    logging.debug(f"Added {table.__tablename__} to Excel File")
+                logging.info("Exported database to Excel")
+        except Exception as e:
+            logging.error(f"Error while exporting data to Excel: {e}")
+        finally:
+            session.close()
+
     def close(self):
         self.engine.dispose()
-        logging.info("Database connection closed")
+        logging.debug("Database connection closed")

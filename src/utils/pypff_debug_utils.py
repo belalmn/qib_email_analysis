@@ -23,14 +23,15 @@ class PST_DEBUG_TOOL:
             for i in range(self.top_of_outlook_data_file.get_number_of_sub_folders())
         ]
         self.sub_folder_dict: Dict[str, pypff.folder] = {i.get_name(): i for i in self.sub_folders}
-        self.inbox: pypff.folder = self.sub_folder_dict["Inbox"]
-        self.messages: List[pypff.message] = [
-            self.inbox.get_sub_message(i) for i in range(self.inbox.get_number_of_sub_messages())
-        ]
-        self.message_dict: Dict[int, pypff.message] = {i.get_identifier(): i for i in self.messages}
+        self.folder_message_dict: Dict[str, Dict[int, pypff.message]] = {}
+        for folder_name, folder in self.sub_folder_dict.items():
+            messages = [
+                folder.get_sub_message(i) for i in range(folder.get_number_of_sub_messages())
+            ]
+            self.message_dict = {i.get_identifier(): i for i in messages}
+            self.folder_message_dict[folder_name] = self.message_dict
 
     @handle_exceptions("Failed to get message from provider email ID", reraise=True)
-    def print_headers_from_id(self, provider_email_id: int) -> pypff.message:
-        headers = self.message_dict[provider_email_id].get_transport_headers()
-        pprint.pprint(headers)
-
+    def print_headers_from_id(self, provider_email_id: int, folder_name: str):
+        message = self.folder_message_dict[folder_name][provider_email_id]
+        pprint.pprint(message.transport_headers)

@@ -15,6 +15,11 @@ class ExtractionResult(BaseModel):
     warning: Optional[str]
 
 
+@handle_exceptions("Failed to extract number of messages from folder", reraise=True)
+def get_number_of_sub_messages(folder: pypff.folder) -> int:
+    return folder.get_number_of_sub_messages()
+
+
 @handle_exceptions("Failed to extract folders from PST", reraise=True)
 def get_folders_from_pst(file_path: str) -> Dict[str, pypff.folder]:
     pst: pypff.file = _open_pst_file(file_path)
