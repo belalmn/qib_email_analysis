@@ -48,8 +48,8 @@ class Message(Base):
     delivery_time = Column(DateTime, nullable=False)
     sender_name = Column(String(255))
     in_reply_to = Column(String(255))
-    subject = Column(Text)
-    body = Column(LONGTEXT)
+    subject = Column(Text(collation='utf8mb4_general_ci'))
+    body = Column(LONGTEXT(collation='utf8mb4_general_ci'))
     first_in_thread = Column(Boolean)
     previous_message_id = Column(String(255))
     domain = Column(String(255))
@@ -78,6 +78,10 @@ class DataLoader:
         self.db_url = f"mysql+pymysql://{user}:{password}@{host}/{database}"
         self.engine = create_engine(self.db_url)
         self.Session = sessionmaker(bind=self.engine)
+
+    def clear_tables(self):
+        Base.metadata.drop_all(self.engine)
+        logging.info("Database tables cleared successfully")
 
     def create_tables(self):
         Base.metadata.create_all(self.engine)

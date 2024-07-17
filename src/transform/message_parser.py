@@ -52,17 +52,17 @@ class ParsedMessage(BaseModel):
             raise
         return v
 
-    @model_validator(mode="after")
-    @classmethod
-    @handle_exceptions("Failed to validate message")
-    def validate_message(cls, parsed_message: "ParsedMessage") -> None:
-        if (
-            parsed_message.to_address is None
-            and parsed_message.cc_address is None
-            and parsed_message.bcc_address is None
-        ):
-            logging.error(f"Message {parsed_message.provider_email_id} has no recipients")
-            raise ValueError("Message has no recipients")
+    # @model_validator(mode="after")
+    # @classmethod
+    # @handle_exceptions("Failed to validate message")
+    # def validate_message(cls, parsed_message: "ParsedMessage") -> None:
+    #     if (
+    #         parsed_message.to_address is None
+    #         and parsed_message.cc_address is None
+    #         and parsed_message.bcc_address is None
+    #     ):
+    #         logging.error(f"Message {parsed_message.provider_email_id} has no recipients")
+    #         raise ValueError("Message has no recipients")
 
 
 class MessageParser:

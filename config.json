@@ -5,5 +5,5 @@
     "db_host": "localhost",
     "db_user": "root",
     "db_name": "email_analysis",
-    "db_password": "belal212"
+    "db_password": "password"
 }
