@@ -1,5 +1,9 @@
 {
     "input_pst_path": "./data/raw/emails.pst",
     "output_directory": "./data/processed/",
-    "chunk_size": 250
+    "chunk_size": 250,
+    "db_host": "localhost",
+    "db_user": "root",
+    "db_name": "email_analysis",
+    "db_password": "belal212"
 }

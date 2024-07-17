@@ -1,19 +1,11 @@
 import logging
 import re
-from typing import List, Optional, Union
+from typing import Optional
 
 import langid
-import pypff
-from pydantic import (
-    BaseModel,
-    Field,
-    ValidationError,
-    ValidationInfo,
-    field_validator,
-    model_validator,
-)
 
-from src.extract.message_parser import ParsedMessage
+from src.transform.message_parser import ParsedMessage
+from src.utils.exception_handler import handle_exceptions
 
 
 class EnrichedMessage(ParsedMessage):
@@ -27,56 +19,53 @@ class EnrichedMessage(ParsedMessage):
 
 
 class MessageEnricher:
-    def __init__(self, parsed_message: ParsedMessage):
-        self.parsed_message = parsed_message
-
-    def _enrich(self) -> EnrichedMessage:
-        self.enriched_message = EnrichedMessage(
-            **self.parsed_message.model_dump(),
-            first_in_thread=self._is_first_in_thread(),
-            previous_message_id=self._get_previous_message_id(),
-            domain=self._get_domain(),
-            language=self._get_language(),
-            spam_score=self._get_spam_score(),
-            from_internal_domain=self._is_from_internal_domain(),
-            subject_prefix=self._get_subject_prefix(),
+    @staticmethod
+    @handle_exceptions("Failed to enrich message")
+    def enrich_message(parsed_message: ParsedMessage) -> EnrichedMessage:
+        enriched_message = EnrichedMessage(
+            **parsed_message.model_dump(),
+            first_in_thread=MessageEnricher._is_first_in_thread(parsed_message),
+            previous_message_id=MessageEnricher._get_previous_message_id(parsed_message),
+            domain=MessageEnricher._get_domain(parsed_message),
+            language=MessageEnricher._get_language(parsed_message),
+            spam_score=MessageEnricher._get_spam_score(parsed_message),
+            from_internal_domain=MessageEnricher._is_from_internal_domain(parsed_message),
+            subject_prefix=MessageEnricher._get_subject_prefix(parsed_message),
         )
-        return self.enriched_message
+        return enriched_message
 
-
-    def enrich(self) -> EnrichedMessage:
-        try:
-            self.enriched_message = self._enrich()
-        except ValidationError as e:
-            logging.error(f"Error enriching message {self.parsed_message.identifier}: {e}")
-            raise
-        return self.enriched_message
-
-    def _is_first_in_thread(self) -> Optional[bool]:
-        if self.parsed_message.in_reply_to is None:
+    @staticmethod
+    def _is_first_in_thread(parsed_message: ParsedMessage) -> Optional[bool]:
+        if parsed_message.in_reply_to is None:
             return True
         return False
 
-    def _get_previous_message_id(self) -> Optional[str]:
-        return self.parsed_message.in_reply_to
+    @staticmethod
+    def _get_previous_message_id(parsed_message: ParsedMessage) -> Optional[str]:
+        return parsed_message.in_reply_to
 
-    def _get_domain(self) -> Optional[str]:
-        if self.parsed_message.from_address:
-            return self.parsed_message.from_address.split("@")[-1]
+    @staticmethod
+    def _get_domain(parsed_message: ParsedMessage) -> Optional[str]:
+        if parsed_message.from_address:
+            return parsed_message.from_address.split("@")[-1]
         return None
 
-    def _get_language(self) -> Optional[str]:
-        if self.parsed_message.body:
-            return langid.classify(self.parsed_message.body)[0]
+    @staticmethod
+    def _get_language(parsed_message: ParsedMessage) -> Optional[str]:
+        if parsed_message.body:
+            return langid.classify(parsed_message.body)[0]
         return None
 
-    def _get_spam_score(self) -> Optional[float]:
+    @staticmethod
+    def _get_spam_score(parsed_message: ParsedMessage) -> Optional[float]:
         return None
 
-    def _is_from_internal_domain(self) -> Optional[bool]:
-        if self.parsed_message.from_address:
-            return self.parsed_message.from_address.endswith("qib.com.qa")
+    @staticmethod
+    def _is_from_internal_domain(parsed_message: ParsedMessage) -> Optional[bool]:
+        if parsed_message.from_address:
+            return parsed_message.from_address.endswith("qib.com.qa")
         return None
 
-    def _get_subject_prefix(self) -> Optional[str]:
+    @staticmethod
+    def _get_subject_prefix(parsed_message: ParsedMessage) -> Optional[str]:
         return None
