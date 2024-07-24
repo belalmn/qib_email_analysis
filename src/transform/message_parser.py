@@ -25,7 +25,9 @@ class ParsedMessage(BaseModel):
     sender_name: Optional[str]
     in_reply_to: Optional[str]
     subject: Optional[str]
-    body: Optional[str]
+    plain_text_body: Optional[str]
+    rich_text_body: Optional[str]
+    html_body: Optional[str]
 
     @field_validator("to_address", "cc_address", "bcc_address")
     @classmethod
@@ -78,7 +80,9 @@ class MessageParser:
                 creation_time=message.get_value("creation_time"),
                 submit_time=message.get_value("submit_time"),
                 delivery_time=message.get_value("delivery_time"),
-                body=message.get_value("body"),
+                plain_text_body=message.get_value("plain_text_body"),
+                rich_text_body=message.get_value("rich_text_body"),
+                html_body=message.get_value("html_body"),
                 folder_name=folder_name,
                 from_address=message.get_value("from_address"),
                 to_address=message.get_value("to_address"),

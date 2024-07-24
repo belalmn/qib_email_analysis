@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple
 import pypff
 from pydantic import BaseModel, Field
 
-from src.utils.config import Config
+from src.config.config import Config
 from src.utils.exception_handler import handle_exceptions
 from src.utils.pypff_folder_utils import (
     get_folders_from_pst,

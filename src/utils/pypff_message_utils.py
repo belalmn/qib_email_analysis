@@ -2,12 +2,13 @@ import email
 import logging
 import re
 from datetime import datetime, timedelta, timezone
-from email.utils import getaddresses
-from email.parser import HeaderParser
 from email.message import Message
+from email.parser import HeaderParser
+from email.utils import getaddresses
 from enum import Enum
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Optional
 
+import chardet
 import pypff
 from pydantic import BaseModel
 
@@ -20,6 +21,7 @@ class ValueType(Enum):
     ADDRESS = "address_header"
     TIMESTAMP = "timestamp"
     MESSAGE_ID = "global_message_id"
+    BODY = "body"
 
 
 class ValueInfo(BaseModel):
@@ -31,6 +33,7 @@ class ValueInfo(BaseModel):
 @handle_exceptions("Failed to get identifier from message", reraise=True)
 def get_provider_email_id_from_message(message: pypff.message) -> int:
     return message.get_identifier()
+
 
 @handle_exceptions("Failed to get message from provider email ID", reraise=True)
 def get_message_from_provider_email_id(pst_path: str, provider_email_id: int) -> pypff.message:
@@ -106,12 +109,29 @@ class PypffMessage:
             return global_message_id.strip("<>")
         return value_info.default_value
 
+    @handle_exceptions("Failed to get special body from message")
+    def _body_from_message(self, value_info: ValueInfo) -> Any:
+        body = self._generic_value_from_message(value_info)
+        if body:
+            try:
+                return body.decode("utf-8")
+            except:
+                charset: Optional[str] = chardet.detect(body)["encoding"]
+                logging.debug(f"Detected charset: {charset} for {value_info.pypff_key}")
+                try:
+                    body = body.decode(charset)
+                    return body
+                except Exception as e:
+                    logging.error(f"Error decoding body with charset {charset}: {e}")
+        return value_info.default_value
+
     _handler_map = {
         ValueType.GENERIC_MESSAGE_VALUE: _generic_value_from_message,
         ValueType.GENERIC_HEADER_VALUE: _generic_value_from_header,
         ValueType.ADDRESS: _address_from_header,
         ValueType.TIMESTAMP: _timestamp_from_message,
         ValueType.MESSAGE_ID: _message_id_from_header,
+        ValueType.BODY: _body_from_message,
     }
 
     _value_map: Dict[str, ValueInfo] = {
@@ -122,7 +142,9 @@ class PypffMessage:
         "creation_time": ValueInfo(pypff_key="creation_time", value_type=ValueType.TIMESTAMP),
         "submit_time": ValueInfo(pypff_key="client_submit_time", value_type=ValueType.TIMESTAMP),
         "delivery_time": ValueInfo(pypff_key="delivery_time", value_type=ValueType.TIMESTAMP),
-        "body": ValueInfo(pypff_key="plain_text_body"),
+        "plain_text_body": ValueInfo(pypff_key="plain_text_body", value_type=ValueType.BODY),
+        "rich_text_body": ValueInfo(pypff_key="rtf_body", value_type=ValueType.BODY),
+        "html_body": ValueInfo(pypff_key="html_body", value_type=ValueType.BODY),
         "from_address": ValueInfo(pypff_key="from", value_type=ValueType.ADDRESS),
         "to_address": ValueInfo(pypff_key="to", value_type=ValueType.ADDRESS),
         "cc_address": ValueInfo(pypff_key="cc", value_type=ValueType.ADDRESS),

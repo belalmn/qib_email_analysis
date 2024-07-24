@@ -3,7 +3,7 @@
     "output_directory": "./data/processed/",
     "chunk_size": 250,
     "db_host": "localhost",
-    "db_user": "root",
-    "db_name": "email_analysis",
-    "db_password": "belal212"
+    "db_user": "rw_06831",
+    "db_password": "Nbo4Vinay#01",
+    "db_name": "DEVMLFLOW"
 }

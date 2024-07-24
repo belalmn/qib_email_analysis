@@ -52,8 +52,8 @@ class MessageEnricher:
 
     @staticmethod
     def _get_language(parsed_message: ParsedMessage) -> Optional[str]:
-        if parsed_message.body:
-            return langid.classify(parsed_message.body)[0]
+        if parsed_message.plain_text_body:
+            return langid.classify(parsed_message.plain_text_body)[0]
         return None
 
     @staticmethod
