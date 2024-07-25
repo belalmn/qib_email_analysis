@@ -36,12 +36,11 @@ class Message(Base):
     creation_time: Mapped[datetime]
     submit_time: Mapped[datetime]
     delivery_time: Mapped[datetime]
-    sender_name: Mapped[Optional[str]] = mapped_column(String(255))
-    in_reply_to: Mapped[Optional[str]] = mapped_column(String(255))
-    subject: Mapped[Optional[str]] = mapped_column(TEXT(64000))
-    plain_text_body: Mapped[Optional[str]] = mapped_column(TEXT(64000))
-    rich_text_body: Mapped[Optional[str]] = mapped_column(TEXT(64000))
-    html_body: Mapped[Optional[str]] = mapped_column(TEXT(64000))
+    sender_name: Mapped[Optional[str]] = mapped_column(String(255, collation="utf8mb4_unicode_ci"))
+    subject: Mapped[Optional[str]] = mapped_column(TEXT(64000, collation="utf8mb4_unicode_ci"))
+    plain_text_body: Mapped[Optional[str]] = mapped_column(TEXT(64000, collation="utf8mb4_unicode_ci"))
+    rich_text_body: Mapped[Optional[str]] = mapped_column(TEXT(64000, collation="utf8mb4_unicode_ci"))
+    html_body: Mapped[Optional[str]] = mapped_column(TEXT(64000, collation="utf8mb4_unicode_ci"))
     first_in_thread: Mapped[Optional[bool]]
     previous_message_id: Mapped[Optional[str]] = mapped_column(String(255))
     domain: Mapped[Optional[str]] = mapped_column(String(255))

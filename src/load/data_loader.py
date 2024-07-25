@@ -34,7 +34,6 @@ class DataLoader:
                     submit_time=message.submit_time,
                     delivery_time=message.delivery_time,
                     sender_name=message.sender_name,
-                    in_reply_to=message.in_reply_to,
                     subject=message.subject,
                     plain_text_body=message.plain_text_body,
                     rich_text_body=message.rich_text_body,

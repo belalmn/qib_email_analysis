@@ -6,7 +6,7 @@ from email.message import Message
 from email.parser import HeaderParser
 from email.utils import getaddresses
 from enum import Enum
-from typing import Any, Dict, List, Union, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import chardet
 import pypff
@@ -119,7 +119,7 @@ class PypffMessage:
                 charset: Optional[str] = chardet.detect(body)["encoding"]
                 logging.debug(f"Detected charset: {charset} for {value_info.pypff_key}")
                 try:
-                    body = body.decode(charset)
+                    body = body.decode(charset, errors="replace")
                     return body
                 except Exception as e:
                     logging.error(f"Error decoding body with charset {charset}: {e}")
