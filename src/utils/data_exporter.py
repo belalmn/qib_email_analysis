@@ -1,5 +1,5 @@
 import logging
-from typing import List, Type
+from typing import Dict, List, Type
 
 import pandas as pd
 from sqlalchemy.orm import Session
@@ -34,14 +34,14 @@ class DataExporter:
 
         self.database.execute_in_session(_export)
 
-    def get_db_as_df(self) -> pd.DataFrame:
-        def _get_df(session: Session) -> pd.DataFrame:
-            query = (
-                session.query(Message, Folder, Address, Recipient)
-                .join(Folder)
-                .join(Address)
-                .outerjoin(Recipient)
-            )
-            return pd.read_sql(query.statement, session.bind)
+    def to_dfs(self) -> Dict[str, pd.DataFrame]:
+        def _to_dfs(session: Session) -> Dict[str, pd.DataFrame]:
+            dfs: Dict[str, pd.DataFrame] = {}
+            tables: List[Type[Base]] = [Folder, Address, Message, Recipient]
+            for table in tables:
+                df = pd.read_sql(session.query(table).statement, session.bind)
+                df = df.set_index("id")
+                dfs[table.__tablename__] = df
+            return dfs
 
-        return self.database.execute_in_session(_get_df)
+        return self.database.execute_in_session(_to_dfs)
