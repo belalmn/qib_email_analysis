@@ -1,7 +1,6 @@
 from typing import Dict, List
 
 import pypff
-import pprint
 
 from src.utils.exception_handler import handle_exceptions
 
@@ -25,13 +24,11 @@ class PST_DEBUG_TOOL:
         self.sub_folder_dict: Dict[str, pypff.folder] = {i.get_name(): i for i in self.sub_folders}
         self.folder_message_dict: Dict[str, Dict[int, pypff.message]] = {}
         for folder_name, folder in self.sub_folder_dict.items():
-            messages = [
-                folder.get_sub_message(i) for i in range(folder.get_number_of_sub_messages())
-            ]
+            messages = [folder.get_sub_message(i) for i in range(folder.get_number_of_sub_messages())]
             self.message_dict = {i.get_identifier(): i for i in messages}
             self.folder_message_dict[folder_name] = self.message_dict
 
     @handle_exceptions("Failed to get message from provider email ID", reraise=True)
-    def print_headers_from_id(self, provider_email_id: int, folder_name: str):
+    def message_from_id(self, provider_email_id: int, folder_name: str) -> pypff.message:
         message = self.folder_message_dict[folder_name][provider_email_id]
-        pprint.pprint(message.transport_headers)
+        return message
