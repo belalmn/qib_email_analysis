@@ -48,6 +48,7 @@ class Message(Base):
     spam_score: Mapped[Optional[float]]
     from_internal_domain: Mapped[Optional[bool]]
     subject_prefix: Mapped[Optional[str]] = mapped_column(String(255))
+    content_type: Mapped[Optional[str]] = mapped_column(String(255))
 
     folder: Mapped["Folder"] = relationship()
     from_address: Mapped["Address"] = relationship()
@@ -70,3 +71,14 @@ class Recipient(Base):
 
     message: Mapped["Message"] = relationship(back_populates="recipients")
     address: Mapped["Address"] = relationship()
+
+
+class References(Base):
+    __tablename__ = "references"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    message_id: Mapped[int] = mapped_column(ForeignKey("messages.id"))
+    global_message_id: Mapped[str] = mapped_column(String(255))
+    order: Mapped[int]
+
+    message: Mapped["Message"] = relationship("Message", foreign_keys=[message_id])

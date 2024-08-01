@@ -68,4 +68,9 @@ class MessageEnricher:
 
     @staticmethod
     def _get_subject_prefix(parsed_message: ParsedMessage) -> Optional[str]:
+        pattern = r"(?i)((re|fwd?|fw):\s*|\[\w+\]\s*)"
+        if parsed_message.subject:
+            match = re.match(pattern, parsed_message.subject.strip())
+            if match:
+                return match.group()
         return None

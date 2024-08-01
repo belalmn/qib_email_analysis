@@ -16,6 +16,20 @@ class Database:
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
         self.metadata = MetaData()
 
+    @staticmethod
+    def from_credentials(
+        username: str, password: str, host: str, database: str, port: int = 3306
+    ) -> "Database":
+        db_url = URL.create(
+            drivername="mysql+pymysql",
+            username=username,
+            password=password,
+            host=host,
+            port=port,
+            database=database,
+        )
+        return Database(db_url)
+
     @contextmanager
     def session(self):
         session = self.SessionLocal()
@@ -37,17 +51,3 @@ class Database:
         self.metadata.reflect(bind=self.engine)
         self.metadata.drop_all(self.engine)
         logging.info("All tables have been dropped from the database.")
-
-    @staticmethod
-    def from_credentials(
-        username: str, password: str, host: str, database: str, port: int = 3306
-    ) -> "Database":
-        db_url = URL.create(
-            drivername="mysql+pymysql",
-            username=username,
-            password=password,
-            host=host,
-            port=port,
-            database=database,
-        )
-        return Database(db_url)

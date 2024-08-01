@@ -4,7 +4,15 @@ from typing import Any, List, Optional, Union
 from sqlalchemy.orm import Session
 
 from src.database.database import Database
-from src.database.models import Address, Base, Folder, Message, Recipient, RecipientType
+from src.database.models import (
+    Address,
+    Base,
+    Folder,
+    Message,
+    Recipient,
+    RecipientType,
+    References,
+)
 from src.transform.message_enricher import EnrichedMessage
 
 
@@ -19,40 +27,42 @@ class DataLoader:
         Base.metadata.create_all(bind=self.database.engine)
         logging.info("All tables have been created in the database.")
 
-    def load(self, enriched_messages: List[EnrichedMessage]) -> None:
+    def load(self, message: EnrichedMessage) -> None:
         def _load(session: Session) -> None:
-            for message in enriched_messages:
-                folder = self._get_or_create(session, Folder, name=message.folder_name)
-                from_address = self._get_or_create(session, Address, email=message.from_address)
+            if not message.folder_name:
+                print(f"------------- Folder Null")
+            folder = self._get_or_create(session, Folder, name=message.folder_name)
+            from_address = self._get_or_create(session, Address, email=message.from_address)
 
-                db_message = Message(
-                    global_message_id=message.global_message_id,
-                    folder=folder,
-                    from_address=from_address,
-                    provider_email_id=message.provider_email_id,
-                    creation_time=message.creation_time,
-                    submit_time=message.submit_time,
-                    delivery_time=message.delivery_time,
-                    sender_name=message.sender_name,
-                    subject=message.subject,
-                    plain_text_body=message.plain_text_body,
-                    rich_text_body=message.rich_text_body,
-                    html_body=message.html_body,
-                    first_in_thread=message.first_in_thread,
-                    previous_message_id=message.previous_message_id,
-                    domain=message.domain,
-                    language=message.language,
-                    spam_score=message.spam_score,
-                    from_internal_domain=message.from_internal_domain,
-                    subject_prefix=message.subject_prefix,
-                )
-                session.add(db_message)
+            db_message = Message(
+                provider_email_id=message.provider_email_id,
+                global_message_id=message.global_message_id,
+                subject=message.subject,
+                sender_name=message.sender_name,
+                creation_time=message.creation_time,
+                submit_time=message.submit_time,
+                delivery_time=message.delivery_time,
+                folder=folder,
+                from_address=from_address,
+                plain_text_body=message.plain_text_body,
+                rich_text_body=message.rich_text_body,
+                html_body=message.html_body,
+                first_in_thread=message.first_in_thread,
+                previous_message_id=message.previous_message_id,
+                domain=message.domain,
+                language=message.language,
+                spam_score=message.spam_score,
+                from_internal_domain=message.from_internal_domain,
+                subject_prefix=message.subject_prefix,
+                content_type=message.content_type,
+            )
+            session.add(db_message)
 
-                self._add_recipients(session, db_message, message.to_address, RecipientType.TO)
-                self._add_recipients(session, db_message, message.cc_address, RecipientType.CC)
-                self._add_recipients(session, db_message, message.bcc_address, RecipientType.BCC)
+            self._add_recipients(session, db_message, message.to_address, RecipientType.TO)
+            self._add_recipients(session, db_message, message.cc_address, RecipientType.CC)
+            self._add_recipients(session, db_message, message.bcc_address, RecipientType.BCC)
 
-            logging.info(f"Successfully loaded {len(enriched_messages)} messages into the database")
+            self._add_references(session, db_message, message.references)
 
         self.database.execute_in_session(_load)
 
@@ -82,3 +92,12 @@ class DataLoader:
         for address in addresses:
             db_address = self._get_or_create(session, Address, email=address)
             db_message.recipients.append(Recipient(address=db_address, type=recipient_type))
+
+    def _add_references(
+        self, session: Session, db_message: Message, references: Optional[List[str]]
+    ) -> None:
+        if not references:
+            return
+
+        for order, reference in enumerate(references):
+            session.add(References(message=db_message, global_message_id=reference, order=order))
