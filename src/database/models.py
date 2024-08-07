@@ -42,6 +42,7 @@ class Message(Base):
     rich_text_body: Mapped[Optional[str]] = mapped_column(TEXT(64000, collation="utf8mb4_unicode_ci"))
     html_body: Mapped[Optional[str]] = mapped_column(TEXT(64000, collation="utf8mb4_unicode_ci"))
     first_in_thread: Mapped[Optional[bool]]
+    num_emails_in_thread: Mapped[Optional[int]]
     previous_message_id: Mapped[Optional[str]] = mapped_column(String(255))
     domain: Mapped[Optional[str]] = mapped_column(String(255))
     language: Mapped[Optional[str]] = mapped_column(String(255))
@@ -49,6 +50,7 @@ class Message(Base):
     from_internal_domain: Mapped[Optional[bool]]
     subject_prefix: Mapped[Optional[str]] = mapped_column(String(255))
     content_type: Mapped[Optional[str]] = mapped_column(String(255))
+    classification: Mapped[Optional[str]] = mapped_column(String(255))
 
     folder: Mapped["Folder"] = relationship()
     from_address: Mapped["Address"] = relationship()
@@ -73,12 +75,29 @@ class Recipient(Base):
     address: Mapped["Address"] = relationship()
 
 
-class References(Base):
+class Reference(Base):
     __tablename__ = "references"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     message_id: Mapped[int] = mapped_column(ForeignKey("messages.id"))
     global_message_id: Mapped[str] = mapped_column(String(255))
     order: Mapped[int]
+
+    message: Mapped["Message"] = relationship("Message", foreign_keys=[message_id])
+
+
+class SubMessage(Base):
+    __tablename__ = "sub_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    message_id: Mapped[int] = mapped_column(ForeignKey("messages.id"))
+    subject: Mapped[Optional[str]] = mapped_column(TEXT(64000, collation="utf8mb4_unicode_ci"))
+    sender_name: Mapped[Optional[str]] = mapped_column(String(255, collation="utf8mb4_unicode_ci"))
+    from_address: Mapped[Optional[str]] = mapped_column(String(255))
+    submit_time: Mapped[Optional[datetime]]
+    receiver_name: Mapped[Optional[str]] = mapped_column(String(255))
+    to_address: Mapped[Optional[str]] = mapped_column(String(255))
+    message_body: Mapped[Optional[str]] = mapped_column(TEXT(64000, collation="utf8mb4_unicode_ci"))
+    global_message_id: Mapped[str] = mapped_column(String(255))
 
     message: Mapped["Message"] = relationship("Message", foreign_keys=[message_id])

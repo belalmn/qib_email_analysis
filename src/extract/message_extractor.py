@@ -7,7 +7,7 @@ import pypff
 from pydantic import BaseModel, Field
 
 from src.config.config import Config
-from src.pst.folder_utils import get_folders_from_pst, get_number_of_sub_messages
+from src.pst.pypff_folder_utils import get_folders_from_pst, get_number_of_sub_messages
 from src.utils.exception_handler import handle_exceptions
 
 
