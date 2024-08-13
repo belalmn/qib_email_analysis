@@ -1,5 +1,6 @@
 data/processed/*
 data/raw/*
+data/interim/*
 *.pyc
 config.json
 *.sql

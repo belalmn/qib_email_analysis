@@ -5,7 +5,7 @@ import pandas as pd
 from sqlalchemy.orm import Session
 from sqlalchemy.schema import CreateTable
 
-import src.database.models as db_models
+import src.database.db_models as db_models
 from src.database.database import Database
 
 

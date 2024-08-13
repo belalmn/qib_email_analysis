@@ -4,7 +4,7 @@ from typing import Any, List, Optional, Union
 from sqlalchemy.orm import Session
 
 from src.database.database import Database
-from src.database.models import (
+from src.database.db_models import (
     Address,
     Base,
     Folder,

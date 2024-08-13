@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class Config(BaseModel):
     model_config = ConfigDict(strict=True)
-    input_pst_path: str = Field(default="./data/raw/emails.pst")
+    pst_file_path: str = Field(default="./data/raw/emails.pst")
     output_directory: str = Field(default="./data/processed/")
     chunk_size: int = Field(default=250, ge=1)
     db_host: str = Field(default="localhost")
@@ -15,7 +15,7 @@ class Config(BaseModel):
     db_password: str = Field(default="password")
 
     def normalize_paths(self):
-        self.input_pst_path = path.normcase(self.input_pst_path)
+        self.pst_file_path = path.normcase(self.pst_file_path)
         self.output_directory = path.normcase(self.output_directory)
 
     @classmethod
