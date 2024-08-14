@@ -46,16 +46,17 @@ class IntentAnalyzer:
 
         return self.df
 
-    def get_top_keywords(self, cluster: int, n: int = 10) -> List[str]:
+    def get_top_keywords(self, cluster: int, n: int = 10) -> List[Tuple[str, int]]:
         if self.tfidf is None:
             raise ValueError("Tfidf vectorizer not initialized")
         cluster_docs = self.df[self.df["cluster"] == cluster]
         tfidf_subset = self.tfidf.transform(cluster_docs["clean_text"])
         tfidf_sum = np.asarray(tfidf_subset.sum(axis=0)).ravel()
         top_indices = tfidf_sum.argsort()[-n:][::-1]
-        return [self.tfidf.get_feature_names_out()[i] for i in top_indices]
+        top_words = [(self.tfidf.get_feature_names_out()[i], tfidf_sum[i]) for i in top_indices]
+        return top_words
 
-    def get_top_keywords_for_each_cluster(self) -> List[List[str]]:
+    def get_top_keywords_for_each_cluster(self) -> List[List[Tuple[str, int]]]:
         if self.tfidf is None:
             raise ValueError("Tfidf vectorizer not initialized")
         top_keywords = []

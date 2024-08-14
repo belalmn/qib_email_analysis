@@ -33,18 +33,16 @@ class TopicModellor:
 
         return self.df
     
-    def get_top_words(self, n: int = 10) -> List[str]:
+    def get_word_cloud_for_each_topic(self, n: int = 10) -> list[list[Tuple[str, int]]]:
         """
-        Get the top words for each topic.
+        Get the top words for each topic along with their frequency.
         """
-        top_indices = self.tfidf_matrix.sum(axis=0).argsort()[-n:][::-1]
-        return [self.tfidf.get_feature_names_out()[i] for i in top_indices]
-    
-    def get_top_words_for_each_topic(self) -> list[list[str]]:
-        """
-        Get the top words for each topic.
-        """
-        top_words = []
+        word_clouds = []
         for topic in range(self.df["lda_topic"].nunique()):
-            top_words.append(self.get_top_words(topic))
-        return top_words
+            topic_mask = self.df["lda_topic"] == topic
+            topic_tfidf = self.tfidf_matrix[topic_mask]
+            column_sums = np.asarray(topic_tfidf.sum(axis=0)).ravel()
+            top_indices = column_sums.argsort()[-n:][::-1]
+            top_words = [(self.tfidf.get_feature_names_out()[i], column_sums[i]) for i in top_indices]
+            word_clouds.append(top_words)
+        return word_clouds

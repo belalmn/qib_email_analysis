@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Union
 
 import html2text
 import pandas as pd
@@ -30,14 +30,21 @@ pd.set_option("future.no_silent_downcasting", True)
 
 
 class PSTExtractor:
-    def __init__(self, file_path: str, sample: Optional[int] = None):
-        logging.info(f"Opening {file_path} for extraction")
-        messages = self.extract_messages_from_pst(file_path)
-        logging.info(f"Found {len(messages)} messages in {file_path}")
+    def __init__(self, file_paths: Union[str, List[str]], sample: Optional[int] = None):
+        self.file_paths = file_paths if isinstance(file_paths, list) else [file_paths]
+        self.sample = sample
+        self.messages = []
 
-        if sample:
-            logging.info(f"Sampling {sample} messages")
-            messages = messages[:sample]
+        for file_path in self.file_paths:
+            logging.info(f"Opening {file_path} for extraction")
+            messages = self.extract_messages_from_pst(file_path)
+            self.messages.extend(messages)
+
+        logging.info(f"Found {len(self.messages)} messages in total")
+
+        if self.sample:
+            logging.info(f"Sampling {self.sample} messages")
+            self.messages = self.messages[:self.sample]
 
         logging.info("Parsing messages")
         message_df = self.parse_messages(messages)

@@ -2,12 +2,17 @@ import re
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
-import langid
 import pandas as pd
+from langid.langid import LanguageIdentifier, model
+
+identifier = LanguageIdentifier.from_modelstring(model, norm_probs=False)
 
 
 def get_language(message: str) -> Optional[str]:
-    return langid.classify(message)[0]
+    language = identifier.classify(message)[0]
+    if language in ["la", "qu"]:
+        return "en"
+    return identifier.classify(message)[0]
 
 
 def get_response_time(df: pd.DataFrame) -> pd.DataFrame:
@@ -27,6 +32,17 @@ def get_response_time(df: pd.DataFrame) -> pd.DataFrame:
 def clean_text(text: Optional[str]) -> str:
     if not text or not isinstance(text, str):
         return ""
-    text = text.replace("\n", " ")
-    text = re.sub(r"^[>].*?$\n", "", text, flags=re.MULTILINE)
+    parts = re.split(
+        r"^-- \n.*|^--\n.*|^-----Original Message-----.*$|^________________________________.*$|^On .* wrote:.*|^From: .*|^Sent from my iPhone.*$",
+        text,
+        flags=re.MULTILINE | re.DOTALL,
+        maxsplit=1,
+    )
+    
+    text = parts[0].strip() if len(parts) > 1 else text
+    text.replace("\n", " ").replace("\r", "").replace("\t", " ").replace("|", " ").replace("-", " ")
+
+    # Remove any lines that are just whitespace
+    text = "\n".join([line for line in text.split("\n") if line.strip()])
+
     return text
