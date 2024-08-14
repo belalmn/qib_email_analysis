@@ -2,13 +2,8 @@ from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
-from hdbscan import HDBSCAN
-from sentence_transformers import SentenceTransformer
-from sklearn.cluster import KMeans
-from sklearn.decomposition import LatentDirichletAllocation, TruncatedSVD
+from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics import silhouette_score
-from sklearn.preprocessing import normalize
 from scipy.sparse import spmatrix
 
 class TopicModellor:
@@ -37,3 +32,19 @@ class TopicModellor:
         self.df["lda_topic"] = lda_output.argmax(axis=1)
 
         return self.df
+    
+    def get_top_words(self, n: int = 10) -> List[str]:
+        """
+        Get the top words for each topic.
+        """
+        top_indices = self.tfidf_matrix.sum(axis=0).argsort()[-n:][::-1]
+        return [self.tfidf.get_feature_names_out()[i] for i in top_indices]
+    
+    def get_top_words_for_each_topic(self) -> list[list[str]]:
+        """
+        Get the top words for each topic.
+        """
+        top_words = []
+        for topic in range(self.df["lda_topic"].nunique()):
+            top_words.append(self.get_top_words(topic))
+        return top_words

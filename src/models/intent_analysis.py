@@ -26,8 +26,8 @@ class IntentAnalyzer:
         self.n_components_svd = n_components_svd
         self.min_cluster_size = min_cluster_size
         self.min_samples = min_samples
-        self.tfidf = None
-        self.tfidf_matrix = None
+        self.tfidf = tfidf
+        self.tfidf_matrix = tfidf_matrix
 
     def perform_clustering(self, embeddings: np.ndarray) -> pd.DataFrame:
         # Dimensionality reduction
@@ -47,9 +47,6 @@ class IntentAnalyzer:
         return self.df
 
     def get_top_keywords(self, cluster: int, n: int = 10) -> List[str]:
-        """
-        Get the top keywords for a given cluster.
-        """
         if self.tfidf is None:
             raise ValueError("Tfidf vectorizer not initialized")
         cluster_docs = self.df[self.df["cluster"] == cluster]
@@ -57,3 +54,11 @@ class IntentAnalyzer:
         tfidf_sum = np.asarray(tfidf_subset.sum(axis=0)).ravel()
         top_indices = tfidf_sum.argsort()[-n:][::-1]
         return [self.tfidf.get_feature_names_out()[i] for i in top_indices]
+
+    def get_top_keywords_for_each_cluster(self) -> List[List[str]]:
+        if self.tfidf is None:
+            raise ValueError("Tfidf vectorizer not initialized")
+        top_keywords = []
+        for cluster in range(self.df["cluster"].nunique()):
+            top_keywords.append(self.get_top_keywords(cluster))
+        return top_keywords

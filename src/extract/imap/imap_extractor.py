@@ -4,10 +4,8 @@ import logging
 import re
 import time
 from datetime import datetime
-from email.header import decode_header
 from email.parser import BytesParser
 from email.policy import default
-from email.utils import formatdate, getaddresses
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import pandas as pd
