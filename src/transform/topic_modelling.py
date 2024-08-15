@@ -4,15 +4,12 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 from hdbscan import HDBSCAN
-from langchain_community.llms.ollama import Ollama
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.preprocessing import normalize
 from wordcloud import WordCloud
 from typing import Dict, List, Tuple
-
-llm = Ollama(model="llama2:7b")
-
+from src.transform.llm_tools import invoke_llm
 
 class TopicModellor:
     def __init__(
@@ -27,7 +24,10 @@ class TopicModellor:
         self.min_cluster_size = min_cluster_size
         self.min_samples = min_samples
 
-    def cluster_topics(self, embeddings: np.ndarray) -> pd.DataFrame:
+    def cluster_topics(self) -> pd.DataFrame:
+        # Retrieve embeddings from embedding column in df
+        embeddings = self.df["embeddings"].tolist()
+
         # Dimensionality reduction
         svd = TruncatedSVD(n_components=self.n_components_svd, random_state=42)
         reduced_embeddings = svd.fit_transform(embeddings)
@@ -80,7 +80,7 @@ class TopicModellor:
         
     #     return unigram_frequency_df, bigram_frequency_df, trigram_frequency_df
 
-    def get_word_frequencies(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def get_n_gram_frequencies(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         unigram_frequencies: Dict[str, List[Tuple[str, int]]] = {}
         bigram_frequencies: Dict[str, List[Tuple[str, int]]] = {}
         trigram_frequencies: Dict[str, List[Tuple[str, int]]] = {}
@@ -88,10 +88,16 @@ class TopicModellor:
         for topic_id in self.df["topic_id"].unique():
             # Retrieve corpus for current topic
             topic_df = self.df[self.df["topic_id"] == topic_id]
+
+            if len(topic_df) == 0:
+                continue
             
             # Get unigram, bigram and trigram frequencies for current topic
             for n in range(1, 4):
-                vec = CountVectorizer(ngram_range=(n,n)).fit(topic_df["clean_text"])
+                try:
+                    vec = CountVectorizer(ngram_range=(n,n)).fit(topic_df["clean_text"])
+                except ValueError:
+                    continue
                 bag_of_words = vec.transform(topic_df["clean_text"])
                 sum_words = bag_of_words.sum(axis=0)
                 words_freq = [(word, sum_words[0, idx]) for word, idx in vec.vocabulary_.items()]
@@ -125,13 +131,13 @@ class TopicModellor:
         wordcloud.generate(clean_text)
         return wordcloud
 
-    def get_topic_descriptions(self) -> pd.DataFrame:
+    def get_topic_descriptions(self, model="llama2:7B") -> pd.DataFrame:
         topic_descriptions = []
         topics_to_describe = (
-            self.df[self.df["topic"] != -1].groupby("topic").filter(lambda x: len(x) >= 5)
+            self.df[self.df["topic_id"] != -1].groupby("topic_id").filter(lambda x: len(x) >= 5)
         )
-        for topic_id in topics_to_describe["topic"].unique():
-            topic_df = self.df[self.df["topic"] == topic_id]
+        for topic_id in topics_to_describe["topic_id"].unique():
+            topic_df = self.df[self.df["topic_id"] == topic_id]
             sample_messages = topic_df.sample(n=5)["clean_text"].tolist()
             prompt = f"""
             You will be given a set of sample emails that belong to the same topic. Your task is to describe the overall topic of these emails in one short and concise sentence.
@@ -180,7 +186,7 @@ class TopicModellor:
 
             Description:
             """
-            description = llm.invoke(prompt).strip()
-            description_df = pd.DataFrame({"topic": [topic_id], "description": [description]})
+            description = invoke_llm(prompt, model).strip()
+            description_df = pd.DataFrame({"topic_id": [topic_id], "description": [description]})
             topic_descriptions.append(description_df)
         return pd.concat(topic_descriptions, ignore_index=True)

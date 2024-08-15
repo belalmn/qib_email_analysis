@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
-from langchain_community.llms.ollama import Ollama
 
-llm = Ollama(model="llama2:7b")
+from src.transform.llm_tools import invoke_llm
 
 classes = [
     "customer_inquiry",
@@ -65,16 +64,21 @@ template = """Based on the following email text, produce a classification of the
     Classification: customer_feedback
 """
 
+
 def get_classification(string: str) -> str:
-    prompt = template + f"""
+    prompt = (
+        template
+        + f"""
     Email text: {string}
     Classification: """
-    result = llm.invoke(prompt)
+    )
+    result = invoke_llm(prompt)
     result = result.strip()
     if result not in class_set:
         # check if any of the classes are in the result
         result = next((c for c in classes if c in result), "missing")
     return result
+
 
 def classify_messages(df: pd.DataFrame) -> pd.DataFrame:
     df["classification"] = df["plain_text_body"].apply(lambda x: get_classification(x))

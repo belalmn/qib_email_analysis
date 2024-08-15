@@ -1,6 +1,9 @@
 data/processed/*
 data/raw/*
 data/interim/*
+data/chroma/*
+models/
+!models/__init__.py
 *.pyc
 config.json
 *.sql
