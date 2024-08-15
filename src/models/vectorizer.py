@@ -3,23 +3,18 @@ from typing import Optional, Tuple
 import numpy as np
 import pandas as pd
 from scipy.sparse import spmatrix
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sentence_transformers import SentenceTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 from src.database.chroma_db.chroma_manager import ChromaManager
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
+
 class Vectorizer:
     def __init__(self, df: pd.DataFrame) -> None:
         self.df = df
         self.chroma_manager: Optional[ChromaManager] = None
-
-    def tfidf_vectorizer(self) -> Tuple[TfidfVectorizer, spmatrix, np.ndarray]:
-        tfidf = TfidfVectorizer(max_features=1000)
-        tfidf_matrix = tfidf.fit_transform(self.df["clean_text"])
-        embeddings = tfidf_matrix.toarray()
-        return tfidf, tfidf_matrix, embeddings
 
     def create_sentence_embeddings(self) -> np.ndarray:
         embeddings = model.encode(self.df["clean_text"].tolist())
