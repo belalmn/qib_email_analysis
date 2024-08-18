@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Union
 # import nltk
 import pandas as pd
 from langid.langid import LanguageIdentifier, model
+
 # from nltk.corpus import stopwords
 # from nltk.stem import PorterStemmer, WordNetLemmatizer
 
@@ -48,7 +49,7 @@ def clean_text(text: Optional[str]) -> str:
     )
 
     text = parts[0].strip() if len(parts) > 1 else text
-    text = text.replace("\n", " ").replace("\r", "").replace("\t", " ").replace("|", " ").replace("-", " ")
+    text = re.sub(r"[\n\r\t| -]+", " ", text, flags=re.MULTILINE)
 
     # Remove any lines that are just whitespace
     text = "\n".join([line for line in text.split("\n") if line.strip()])

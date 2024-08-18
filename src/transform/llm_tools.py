@@ -15,10 +15,9 @@
 
 import torch
 import transformers
-from langchain import HuggingFacePipeline, LLMChain, PromptTemplate
 from transformers import AutoTokenizer
 
-model = "meta-llama/Llama-2-7b-chat-hf"
+model = "meta-llama/Llama-3.1-8B-Instruct"
 tokenizer = AutoTokenizer.from_pretrained(model)
 
 pipeline = transformers.pipeline(
