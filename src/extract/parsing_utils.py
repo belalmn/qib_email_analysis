@@ -5,11 +5,14 @@ from typing import List, Optional
 import chardet
 import html2text
 import pandas as pd
+from tqdm import tqdm
 
 htmlConverter = html2text.HTML2Text()
 htmlConverter.ignore_links = True
 htmlConverter.ignore_images = True
 htmlConverter.ignore_emphasis = True
+
+tqdm.pandas()
 
 
 def parse_addresses(address: Optional[str]) -> Optional[str]:
@@ -88,12 +91,12 @@ def parse_domain_info(df: pd.DataFrame) -> pd.DataFrame:
 
 def fill_plain_text_body(df: pd.DataFrame) -> pd.DataFrame:
     replace_df = df.loc[df["html_body"].notnull() & df["plain_text_body"].isnull()].copy()
-    replace_df["plain_text_body"] = replace_df["html_body"].apply(htmlConverter.handle)
+    replace_df["plain_text_body"] = replace_df["html_body"].progress_apply(htmlConverter.handle)
 
     df.loc[df["html_body"].notnull() & df["plain_text_body"].isnull(), "plain_text_is_converted"] = True
     df.loc[df["html_body"].notnull() & df["plain_text_body"].isnull(), "plain_text_body"] = replace_df[
         "plain_text_body"
     ]
 
-    df["plain_text_is_converted"] = df["plain_text_is_converted"].fillna(False).infer_objects(copy=False)
+    df["plain_text_is_converted"] = df["plain_text_is_converted"].fillna(False)
     return df

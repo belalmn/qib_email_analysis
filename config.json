@@ -1,7 +1,4 @@
 {
-    "input_pst_path": "./data/raw/emails.pst",
-    "output_directory": "./data/processed/",
-    "chunk_size": 250,
     "db_host": "localhost",
     "db_user": "rw_06831",
     "db_password": "Nbo4Vinay#01",

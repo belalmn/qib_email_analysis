@@ -1,16 +1,14 @@
 import logging
+import multiprocessing as mp
+from multiprocessing.pool import ThreadPool as Pool
 from typing import Any, Dict, List, Optional, Set, Union
 
 import html2text
 import pandas as pd
 import pypff
+from tqdm import tqdm
 
-from src.extract.pst.pst_parsing_utils import (
-    parse_headers,
-    parse_timestamp,
-    safe_getattr,
-)
-from src.extract.shared.parsing_utils import (
+from src.extract.parsing_utils import (
     charset_from_content_type,
     fill_plain_text_body,
     parse_addresses,
@@ -20,17 +18,23 @@ from src.extract.shared.parsing_utils import (
     parse_identifiers,
     prefix_from_subject,
 )
+from src.extract.pst_parsing_utils import parse_headers, parse_timestamp, safe_getattr
 
 htmlConverter = html2text.HTML2Text()
 htmlConverter.ignore_links = True
 htmlConverter.ignore_images = True
 htmlConverter.ignore_emphasis = True
 
-pd.set_option("future.no_silent_downcasting", True)
+tqdm.pandas()
 
 
 class PSTExtractor:
-    def __init__(self, file_paths: Union[str, List[str]], sample: Optional[int] = None):
+    def __init__(
+        self,
+        file_paths: Union[str, List[str]],
+        sample: Optional[int] = None,
+        fill_missing_data: bool = False,
+    ):
         self.file_paths = file_paths if isinstance(file_paths, list) else [file_paths]
         self.sample = sample
         self.messages = []
@@ -44,13 +48,14 @@ class PSTExtractor:
 
         if self.sample:
             logging.info(f"Sampling {self.sample} messages")
-            self.messages = self.messages[:self.sample]
+            self.messages = self.messages[: self.sample]
 
         logging.info("Parsing messages")
         message_df = self.parse_messages(messages)
 
-        logging.info("Filling missing data")
-        message_df = fill_plain_text_body(message_df)
+        if fill_missing_data:
+            logging.info("Filling missing data")
+            message_df = fill_plain_text_body(message_df)
 
         logging.info("Parsing email threading")
         message_df = parse_email_threading(message_df)
@@ -138,9 +143,30 @@ class PSTExtractor:
             "references": references,
         }
 
+    # def parse_messages(self, messages: List[pypff.message]) -> pd.DataFrame:
+    #     df_list = [pd.DataFrame([self.parse_message(msg)]) for msg in tqdm(messages)]
+    #     return pd.concat(df_list)
+
     def parse_messages(self, messages: List[pypff.message]) -> pd.DataFrame:
-        df_list = [pd.DataFrame([self.parse_message(msg)]) for msg in messages]
-        return pd.concat(df_list)
+        num_processes = mp.cpu_count()  # Get the number of CPU cores
+        chunk_size = max(1, len(messages) // num_processes)  # Determine chunk size
+
+        logging.info(f"Using {num_processes} processes with a chunk size of {chunk_size}")
+
+        results = []
+        with Pool(processes=num_processes) as pool:
+            total = len(messages)
+            with tqdm(total=total) as pbar:
+                for result in pool.imap_unordered(self.parse_message, messages, chunksize=chunk_size):
+                    results.append(result)
+                    pbar.update(1)
+            # results = list(tqdm(
+            #     pool.imap(self.parse_message, messages, chunksize=chunk_size),
+            #     total=len(messages),
+            #     desc="Parsing messages"
+            # ))
+
+        return pd.DataFrame(results)
 
     def open_pst_file(self, file_path: str) -> pypff.file:
         pst: pypff.file = pypff.file()

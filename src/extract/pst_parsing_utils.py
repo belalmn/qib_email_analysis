@@ -5,8 +5,6 @@ from typing import Any, Dict, Optional
 import pandas as pd
 import pypff
 
-pd.set_option("future.no_silent_downcasting", True)
-
 
 def safe_getattr(obj, attr, default=None):
     try:

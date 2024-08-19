@@ -11,8 +11,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import pandas as pd
 from tqdm.auto import tqdm
 
-from src.extract.imap.imap_parsing_utils import decode_str, parse_timestamp
-from src.extract.shared.parsing_utils import (
+from src.extract.imap_parsing_utils import decode_str, parse_timestamp
+from src.extract.parsing_utils import (
     charset_from_content_type,
     parse_addresses,
     parse_domain_info,
