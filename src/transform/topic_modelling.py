@@ -99,12 +99,12 @@ class TopicModellor:
 
         return combined_frequency_df
 
-    # def generate_word_cloud(self, message_df: pd.DataFrame, topic_id: int) -> pd.DataFrame:
-    #     topic_df = message_df[message_df["topic_id"] == topic_id]
-    #     clean_text = " ".join(topic_df["clean_text"])
-    #     wordcloud = WordCloud(width=800, height=400, background_color="white", min_font_size=10)
-    #     wordcloud.generate(clean_text)
-    #     return wordcloud
+    def generate_word_cloud(self, message_df: pd.DataFrame, topic_id: int) -> pd.DataFrame:
+        topic_df = message_df[message_df["topic_id"] == topic_id]
+        clean_text = " ".join(topic_df["clean_text"])
+        wordcloud = WordCloud(width=800, height=400, background_color="white", min_font_size=10)
+        wordcloud.generate(clean_text)
+        return wordcloud
 
     def get_topic_descriptions(self, message_df: pd.DataFrame) -> pd.DataFrame:
         topic_descriptions = []
