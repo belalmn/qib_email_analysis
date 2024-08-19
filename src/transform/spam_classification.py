@@ -19,4 +19,4 @@ def classify_spam_messages(df: pd.DataFrame) -> pd.DataFrame:
         return "spam" in result and "ham" not in result
 
     df["is_spam"] = df["clean_text"].progress_apply(lambda x: _classify_message(str(x)))
-    return df
+    return df[["message_id", "is_spam"]]

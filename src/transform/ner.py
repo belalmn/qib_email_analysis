@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Tuple
 
 import pandas as pd
 import json
@@ -75,13 +75,24 @@ Input:
 
 
 def extract_entities_from_messages(df: pd.DataFrame) -> pd.DataFrame:
-    def _extract_entities_from_message(message: str) -> Dict[str, Union[str, List[str]]]:
+    def _extract_entities_from_message(message: str) -> List[Tuple[str, str]]:
         prompt = f"{TEMPLATE}\n{message}\n\nOutput:"
         result = invoke_llm(prompt)
+        entities = []
         try:
-            return json.loads(result)
+            output = json.loads(result)
         except json.JSONDecodeError:
-            return {}
+            output = []
+        for entity_type, entity_value in output.items():
+            if isinstance(entity_value, str):
+                entities.append((entity_type, entity_value))
+            elif isinstance(entity_value, list):
+                for e in entity_value:
+                    entities.append((entity_type, e))
+        return entities
 
     df["entities"] = df["clean_text"].progress_apply(lambda x: _extract_entities_from_message(str(x)))
-    return df
+    exploded_df = df.explode("entities")
+    exploded_df[["entity_type", "entity_value"]] = pd.DataFrame(exploded_df["entities"].tolist(), index=exploded_df.index)
+    df = exploded_df.drop(columns=["entities"])
+    return df[["message_id", "entity_type", "entity_value"]]

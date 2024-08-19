@@ -1,5 +1,6 @@
 import re
 from collections import Counter
+from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -7,26 +8,36 @@ from hdbscan import HDBSCAN
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.preprocessing import normalize
+from tqdm import tqdm
 from wordcloud import WordCloud
-from typing import Dict, List, Tuple
+
 from src.transform.llm_tools import invoke_llm
+
+tqdm.pandas()
+
 
 class TopicModellor:
     def __init__(
         self,
-        df: pd.DataFrame,
+        message_df: pd.DataFrame,
         n_components_svd: int = 50,
         min_cluster_size: int = 10,
         min_samples: int = 5,
     ):
-        self.df = df
         self.n_components_svd = n_components_svd
         self.min_cluster_size = min_cluster_size
         self.min_samples = min_samples
 
-    def cluster_topics(self) -> pd.DataFrame:
+        topic_df = self.cluster_topics(message_df)[["message_id", "topic_id", "clean_text"]]
+        topic_descriptions = self.get_topic_descriptions(topic_df)[["topic_id", "description"]]
+
+        self.message_df = topic_df[["message_id", "topic_id"]].merge(message_df, on="message_id")
+        self.topics_df = topic_df.merge(topic_descriptions, on="topic_id")[["topic_id", "description"]]
+        self.word_frequencies = self.get_topic_word_frequencies(topic_df)[["topic_id", "word", "frequency"]]
+
+    def cluster_topics(self, message_df: pd.DataFrame) -> pd.DataFrame:
         # Retrieve embeddings from embedding column in df
-        embeddings = self.df["embeddings"].tolist()
+        embeddings = message_df["embeddings"].tolist()
 
         # Dimensionality reduction
         svd = TruncatedSVD(n_components=self.n_components_svd, random_state=42)
@@ -40,104 +51,68 @@ class TopicModellor:
         cluster_labels = clusterer.fit_predict(normalized_embeddings)
 
         # Add results to dataframe
-        self.df["topic_id"] = cluster_labels
+        message_df["topic_id"] = cluster_labels
 
-        return self.df
-    
-    # def get_word_frequencies(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    #     """Get the word frequencies for each topic in the dataframe."""
-    #     topic_word_frequencies = {
-    #         "unigrams": {},
-    #         "bigrams": {},
-    #         "trigrams": {},
-    #     }
-        
-    #     for topic_id in self.df["topic_id"].unique():
-    #         topic_df = self.df[self.df["topic_id"] == topic_id]
-            
-    #         for ngram_type, n in zip(topic_word_frequencies.keys(), range(1, 4)):
-    #             vectorizer = CountVectorizer(ngram_range=(n, n))
-    #             bag_of_words = vectorizer.fit_transform(topic_df["clean_text"])
-    #             sum_words = bag_of_words.sum(axis=0)
-    #             words_freq = sorted(
-    #                 [(word, sum_words[0, idx]) for word, idx in vectorizer.vocabulary_.items()],
-    #                 key=lambda x: x[1],
-    #                 reverse=True
-    #             )
-    #             topic_word_frequencies[ngram_type][topic_id] = words_freq
-        
-    #     # Create dataframes
-    #     def create_df(freq_dict):
-    #         rows = []
-    #         for topic_id, word_freq_list in freq_dict.items():
-    #             for word, freq in word_freq_list:
-    #                 rows.append({"topic_id": topic_id, "word": word, "frequency": freq})
-    #         return pd.DataFrame(rows)
-        
-    #     unigram_frequency_df = create_df(topic_word_frequencies["unigrams"])
-    #     bigram_frequency_df = create_df(topic_word_frequencies["bigrams"])
-    #     trigram_frequency_df = create_df(topic_word_frequencies["trigrams"])
-        
-    #     return unigram_frequency_df, bigram_frequency_df, trigram_frequency_df
+        return message_df
 
-    def get_n_gram_frequencies(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        unigram_frequencies: Dict[str, List[Tuple[str, int]]] = {}
-        bigram_frequencies: Dict[str, List[Tuple[str, int]]] = {}
-        trigram_frequencies: Dict[str, List[Tuple[str, int]]] = {}
-        
-        for topic_id in self.df["topic_id"].unique():
-            # Retrieve corpus for current topic
-            topic_df = self.df[self.df["topic_id"] == topic_id]
+    def get_topic_word_frequencies(self, message_df: pd.DataFrame) -> pd.DataFrame:
+        topic_word_frequencies: Dict[str, Any] = {
+            "unigrams": {},
+            "bigrams": {},
+            "trigrams": {},
+        }
 
-            if len(topic_df) == 0:
-                continue
-            
-            # Get unigram, bigram and trigram frequencies for current topic
-            for n in range(1, 4):
-                try:
-                    vec = CountVectorizer(ngram_range=(n,n)).fit(topic_df["clean_text"])
-                except ValueError:
-                    continue
-                bag_of_words = vec.transform(topic_df["clean_text"])
+        # Loop through each unique topic_id
+        for topic_id in tqdm(message_df["topic_id"].unique(), desc="Generating topic word frequencies"):
+            topic_df = message_df[message_df["topic_id"] == topic_id]
+
+            # Generate frequencies for unigrams, bigrams, and trigrams
+            for ngram_type, n in zip(topic_word_frequencies.keys(), range(1, 4)):
+                vectorizer = CountVectorizer(ngram_range=(n, n))
+                bag_of_words = vectorizer.fit_transform(topic_df["clean_text"])
                 sum_words = bag_of_words.sum(axis=0)
-                words_freq = [(word, sum_words[0, idx]) for word, idx in vec.vocabulary_.items()]
-                words_freq = sorted(words_freq, key=lambda x: x[1], reverse=True)
-                
-                if n == 1:
-                    unigram_frequencies[topic_id] = words_freq
-                elif n == 2:
-                    bigram_frequencies[topic_id] = words_freq
-                elif n == 3:
-                    trigram_frequencies[topic_id] = words_freq
+                words_freq = sorted(
+                    [(word, sum_words[0, idx]) for word, idx in vectorizer.vocabulary_.items()],
+                    key=lambda x: x[1],
+                    reverse=True,
+                )
+                topic_word_frequencies[ngram_type][topic_id] = words_freq
 
-        # Create dataframes
-        def create_df(freq_dict):
-            rows = []
-            for topic_id, word_freq_list in freq_dict.items():
-                for word, freq in word_freq_list:
-                    rows.append({"topic_id": topic_id, "word": word, "frequency": freq})
-            return pd.DataFrame(rows)
+        # Function to sample a certain number of rows
+        def sample_top_n(words_freq, value):
+            total = len(words_freq)
+            return words_freq[:value]
 
-        unigram_frequency_df = create_df(unigram_frequencies)
-        bigram_frequency_df = create_df(bigram_frequencies)
-        trigram_frequency_df = create_df(trigram_frequencies)
+        # Combine the frequencies into a single list of rows with proportional sampling
+        rows = []
+        for topic_id in message_df["topic_id"].unique():
+            unigram_sample = sample_top_n(topic_word_frequencies["unigrams"][topic_id], 12)
+            bigram_sample = sample_top_n(topic_word_frequencies["bigrams"][topic_id], 4)
+            trigram_sample = sample_top_n(topic_word_frequencies["trigrams"][topic_id], 2)
 
-        return unigram_frequency_df, bigram_frequency_df, trigram_frequency_df
+            combined_samples = unigram_sample + bigram_sample + trigram_sample
+            for word, freq in combined_samples:
+                rows.append({"topic_id": topic_id, "word": word, "frequency": freq})
 
-    def generate_word_cloud(self, topic_id: int) -> pd.DataFrame:
-        topic_df = self.df[self.df["topic_id"] == topic_id]
-        clean_text = " ".join(topic_df["clean_text"])
-        wordcloud = WordCloud(width=800, height=400, background_color="white", min_font_size=10)
-        wordcloud.generate(clean_text)
-        return wordcloud
+        # Create a single DataFrame
+        combined_frequency_df = pd.DataFrame(rows)
 
-    def get_topic_descriptions(self, model="llama2:7B") -> pd.DataFrame:
+        return combined_frequency_df
+
+    # def generate_word_cloud(self, message_df: pd.DataFrame, topic_id: int) -> pd.DataFrame:
+    #     topic_df = message_df[message_df["topic_id"] == topic_id]
+    #     clean_text = " ".join(topic_df["clean_text"])
+    #     wordcloud = WordCloud(width=800, height=400, background_color="white", min_font_size=10)
+    #     wordcloud.generate(clean_text)
+    #     return wordcloud
+
+    def get_topic_descriptions(self, message_df: pd.DataFrame) -> pd.DataFrame:
         topic_descriptions = []
         topics_to_describe = (
-            self.df[self.df["topic_id"] != -1].groupby("topic_id").filter(lambda x: len(x) >= 5)
+            message_df[message_df["topic_id"] != -1].groupby("topic_id").filter(lambda x: len(x) >= 5)
         )
         for topic_id in topics_to_describe["topic_id"].unique():
-            topic_df = self.df[self.df["topic_id"] == topic_id]
+            topic_df = message_df[message_df["topic_id"] == topic_id]
             sample_messages = topic_df.sample(n=5)["clean_text"].tolist()
             prompt = f"""
             You will be given a set of sample emails that belong to the same topic. Your task is to describe the overall topic of these emails in one short and concise sentence.
@@ -186,7 +161,7 @@ class TopicModellor:
 
             Description:
             """
-            description = invoke_llm(prompt, model).strip()
+            description = invoke_llm(prompt).strip()
             description_df = pd.DataFrame({"topic_id": [topic_id], "description": [description]})
             topic_descriptions.append(description_df)
-        return pd.concat(topic_descriptions, ignore_index=True)
+        return pd.concat(topic_descriptions, ignore_index=True)[["topic_id", "description"]]

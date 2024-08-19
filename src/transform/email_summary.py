@@ -67,4 +67,4 @@ def summarize_messages(df: pd.DataFrame) -> pd.DataFrame:
         return result
 
     df["summary"] = df["clean_text"].progress_apply(lambda x: _summarize_message(str(x)))
-    return df
+    return df[["message_id", "summary"]]

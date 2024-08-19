@@ -17,7 +17,7 @@ import torch
 import transformers
 from transformers import AutoTokenizer
 
-model = "meta-llama/Llama-3.1-8B-Instruct"
+model = "google/gemma-2b"
 tokenizer = AutoTokenizer.from_pretrained(model)
 
 pipeline = transformers.pipeline(
