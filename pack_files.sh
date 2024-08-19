@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DATE_STRING=$(date +"%Y-%m-%d")
-FOLDER_NAME="email_analysis_${DATE_STRING}"
+ZIP_NAME="email_analysis_${DATE_STRING}"
 
 # Create temp directory
 mkdir -p tmp
@@ -29,5 +29,5 @@ mkdir -p tmp/src/models
 cp requirements.txt tmp
 cp config.json tmp
 
-# Rename tmp folder
-mv tmp "${FOLDER_NAME}"
+# Zip folder
+zip -r "${ZIP_NAME}.zip" tmp

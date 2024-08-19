@@ -7,3 +7,4 @@ models/
 *.pyc
 config.json
 *.sql
+*.zip
