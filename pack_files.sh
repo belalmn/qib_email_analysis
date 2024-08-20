@@ -29,5 +29,15 @@ mkdir -p tmp/src/models
 cp requirements.txt tmp
 cp config.json tmp
 
-# Zip folder
-zip -r "${ZIP_NAME}.zip" tmp
+# Remove all .pyc files and all __pycache__ folders
+find tmp -name '*.pyc' -delete
+find tmp -name '__pycache__' -delete
+
+# Create zip file
+cd tmp
+zip -r "${ZIP_NAME}.zip" *
+mv "${ZIP_NAME}.zip" ../
+cd ..
+
+# Clean up
+rm -rf tmp

@@ -51,7 +51,7 @@ class PSTExtractor:
             self.messages = self.messages[: self.sample]
 
         logging.info("Parsing messages")
-        message_df = self.parse_messages(messages)
+        message_df = self.parse_messages(self.messages)
 
         if fill_missing_data:
             logging.info("Filling missing data")
