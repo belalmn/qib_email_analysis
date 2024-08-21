@@ -1,21 +1,24 @@
 import logging
 from typing import Any, List, Optional, Union
 
+import pandas as pd
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from src.database.database import Database
 from src.database.db_models import (
     Address,
     Base,
-    Folder,
+    Classification,
+    Domain,
+    Entity,
     Message,
-    Recipient,
-    RecipientType,
+    Product,
     Reference,
-    SubMessage,
+    Summary,
+    Topic,
+    WordFrequency,
 )
-from src.transform.message_enricher import EnrichedMessage
-from src.transform.sub_message_parser import SubMessage as SubMessageObject
 
 
 class DataLoader:
@@ -29,46 +32,169 @@ class DataLoader:
         Base.metadata.create_all(bind=self.database.engine)
         logging.info("All tables have been created in the database.")
 
-    def load(self, message: EnrichedMessage) -> None:
-        def _load(session: Session) -> None:
-            folder = self._get_or_create(session, Folder, name=message.folder_name)
-            from_address = self._get_or_create(session, Address, email=message.from_address)
+    def load_dataframe(self, df: pd.DataFrame, table_name: str) -> None:
+        """Loads a Pandas DataFrame into the specified SQL table."""
+        if not hasattr(self, f"_load_{table_name}"):
+            logging.error(f"Table name '{table_name}' does not have a corresponding load method.")
+            return
 
-            db_message = Message(
-                provider_email_id=message.provider_email_id,
-                global_message_id=message.global_message_id,
-                subject=message.subject,
-                sender_name=message.sender_name,
-                creation_time=message.creation_time,
-                submit_time=message.submit_time,
-                delivery_time=message.delivery_time,
-                folder=folder,
-                from_address=from_address,
-                plain_text_body=message.plain_text_body,
-                rich_text_body=message.rich_text_body,
-                html_body=message.html_body,
-                first_in_thread=message.first_in_thread,
-                num_emails_in_thread=message.num_emails_in_thread,
-                previous_message_id=message.in_reply_to,
-                domain=message.domain,
-                language=message.language,
-                spam_score=message.spam_score,
-                from_internal_domain=message.from_internal_domain,
-                subject_prefix=message.subject_prefix,
-                content_type=message.content_type,
-                classification=message.classification,
-            )
-            session.add(db_message)
+        load_method = getattr(self, f"_load_{table_name}")
+        self.database.execute_in_session(lambda session: load_method(session, df))
 
-            self._add_recipients(session, db_message, message.to_address, RecipientType.TO)
-            self._add_recipients(session, db_message, message.cc_address, RecipientType.CC)
-            self._add_recipients(session, db_message, message.bcc_address, RecipientType.BCC)
+    def _load_messages(self, session: Session, df: pd.DataFrame) -> None:
+        for _, row in df.iterrows():
+            try:
+                topic = self._get_or_create(session, Topic, topic_id=row["topic_id"])
 
-            self._add_references(session, db_message, message.references)
+                message = Message(
+                    message_id=row["message_id"],
+                    topic_id=topic.topic_id,
+                    is_spam=row["is_spam"],
+                    subject=row["subject"],
+                    subject_prefix=row["subject_prefix"],
+                    submit_time=row["submit_time"],
+                    delivery_time=row["delivery_time"],
+                    html_body=row["html_body"],
+                    plain_text_body=row["plain_text_body"],
+                    from_name=row["from_name"],
+                    previous_message_id=row["previous_message_id"],
+                    first_in_thread=row["first_in_thread"],
+                    num_previous_messages=row["num_previous_messages"],
+                    thread_id=row["thread_id"],
+                    sender_domain=row["sender_domain"],
+                    is_internal=row["is_internal"],
+                    clean_text=row["clean_text"],
+                    response_time=row["response_time"],
+                    language=row["language"],
+                )
+                session.add(message)
+            except SQLAlchemyError as e:
+                logging.error(f"Failed to insert message: {e}")
+                session.rollback()
+                continue
 
-            self._add_sub_messages(session, db_message, message.sub_messages)
+    def _load_addresses(self, session: Session, df: pd.DataFrame) -> None:
+        for _, row in df.iterrows():
+            try:
+                message = self._get_or_create(session, Message, message_id=row["message_id"])
 
-        self.database.execute_in_session(_load)
+                address = Address(
+                    message_id=message.message_id,
+                    address_type=row["address_type"],
+                    address=row["address"],
+                )
+                session.add(address)
+            except SQLAlchemyError as e:
+                logging.error(f"Failed to insert address: {e}")
+                session.rollback()
+                continue
+
+    def _load_references(self, session: Session, df: pd.DataFrame) -> None:
+        for _, row in df.iterrows():
+            try:
+                message = self._get_or_create(session, Message, message_id=row["message_id"])
+
+                reference = Reference(
+                    message_id=message.message_id,
+                    reference_message_id=row["reference_message_id"],
+                )
+                session.add(reference)
+            except SQLAlchemyError as e:
+                logging.error(f"Failed to insert reference: {e}")
+                session.rollback()
+                continue
+
+    def _load_domains(self, session: Session, df: pd.DataFrame) -> None:
+        for _, row in df.iterrows():
+            try:
+                message = self._get_or_create(session, Message, message_id=row["message_id"])
+
+                domain = Domain(
+                    message_id=message.message_id,
+                    domain=row["domain"],
+                )
+                session.add(domain)
+            except SQLAlchemyError as e:
+                logging.error(f"Failed to insert domain: {e}")
+                session.rollback()
+                continue
+
+    def _load_classifications(self, session: Session, df: pd.DataFrame) -> None:
+        for _, row in df.iterrows():
+            try:
+                message = self._get_or_create(session, Message, message_id=row["message_id"])
+
+                classification = Classification(
+                    message_id=message.message_id,
+                    category=row["category"],
+                )
+                session.add(classification)
+            except SQLAlchemyError as e:
+                logging.error(f"Failed to insert classification: {e}")
+                session.rollback()
+                continue
+
+    def _load_products(self, session: Session, df: pd.DataFrame) -> None:
+        for _, row in df.iterrows():
+            try:
+                message = self._get_or_create(session, Message, message_id=row["message_id"])
+
+                product = Product(
+                    message_id=message.message_id,
+                    product=row["product"],
+                )
+                session.add(product)
+            except SQLAlchemyError as e:
+                logging.error(f"Failed to insert product: {e}")
+                session.rollback()
+                continue
+
+    def _load_entities(self, session: Session, df: pd.DataFrame) -> None:
+        for _, row in df.iterrows():
+            try:
+                message = self._get_or_create(session, Message, message_id=row["message_id"])
+
+                entity = Entity(
+                    message_id=message.message_id,
+                    entity_type=row["entity_type"],
+                    entity_value=row["entity_value"],
+                )
+                session.add(entity)
+            except SQLAlchemyError as e:
+                logging.error(f"Failed to insert entity: {e}")
+                session.rollback()
+                continue
+
+    def _load_summaries(self, session: Session, df: pd.DataFrame) -> None:
+        for _, row in df.iterrows():
+            try:
+                message = self._get_or_create(session, Message, message_id=row["message_id"])
+
+                summary = Summary(
+                    message_id=message.message_id,
+                    summary=row["summary"],
+                )
+                session.add(summary)
+            except SQLAlchemyError as e:
+                logging.error(f"Failed to insert summary: {e}")
+                session.rollback()
+                continue
+
+    def _load_word_frequencies(self, session: Session, df: pd.DataFrame) -> None:
+        for _, row in df.iterrows():
+            try:
+                topic = self._get_or_create(session, Topic, topic_id=row["topic_id"])
+
+                word_frequency = WordFrequency(
+                    topic_id=topic.topic_id,
+                    word=row["word"],
+                    frequency=row["frequency"],
+                )
+                session.add(word_frequency)
+            except SQLAlchemyError as e:
+                logging.error(f"Failed to insert word frequency: {e}")
+                session.rollback()
+                continue
 
     def _get_or_create(self, session: Session, model: type, **kwargs: Any) -> Any:
         instance = session.query(model).filter_by(**kwargs).first()
@@ -79,51 +205,3 @@ class DataLoader:
             session.add(instance)
             session.flush()
             return instance
-
-    def _add_recipients(
-        self,
-        session: Session,
-        db_message: Message,
-        addresses: Optional[Union[str, List[str]]],
-        recipient_type: RecipientType,
-    ) -> None:
-        if not addresses:
-            return
-
-        if isinstance(addresses, str):
-            addresses = [addresses]
-
-        for address in addresses:
-            db_address = self._get_or_create(session, Address, email=address)
-            db_message.recipients.append(Recipient(address=db_address, type=recipient_type))
-
-    def _add_references(
-        self, session: Session, db_message: Message, references: Optional[List[str]]
-    ) -> None:
-        if not references:
-            return
-
-        for order, reference in enumerate(references):
-            session.add(Reference(message=db_message, global_message_id=reference, order=order))
-
-    def _add_sub_messages(
-        self, session: Session, db_message: Message, sub_messages: Optional[List[SubMessageObject]]
-    ) -> None:
-        if not sub_messages:
-            return
-
-        print(len(sub_messages))
-        for sub_message in sub_messages:
-            session.add(
-                SubMessage(
-                    message=db_message,
-                    subject=sub_message.subject,
-                    sender_name=sub_message.sender_name,
-                    from_address=sub_message.from_address,
-                    submit_time=sub_message.submit_time,
-                    receiver_name=sub_message.receiver_name,
-                    to_address=sub_message.to_address,
-                    message_body=sub_message.plain_body_text,
-                    global_message_id=sub_message.global_message_id,
-                )
-            )

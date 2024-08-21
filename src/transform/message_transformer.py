@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Union
 # import nltk
 import pandas as pd
 from langid.langid import LanguageIdentifier, model
+from tqdm import tqdm
 
 # from nltk.corpus import stopwords
 # from nltk.stem import PorterStemmer, WordNetLemmatizer
@@ -16,6 +17,8 @@ identifier = LanguageIdentifier.from_modelstring(model, norm_probs=False)
 # nltk.download("wordnet")
 # nltk.download("stopwords")
 
+tqdm.pandas()
+
 
 def get_language(message: str) -> Optional[str]:
     language = identifier.classify(message)[0]
@@ -26,7 +29,7 @@ def get_language(message: str) -> Optional[str]:
 
 def get_response_time(df: pd.DataFrame) -> pd.DataFrame:
     df["response_time"] = None
-    for index, row in df.iterrows():
+    for index, row in tqdm(df.iterrows(), total=len(df)):
         previous_message_id = row["previous_message_id"]
         if previous_message_id:
             previous_row = df.loc[df["message_id"] == previous_message_id]

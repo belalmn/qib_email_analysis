@@ -14,6 +14,7 @@ cp -r src/extract tmp/src/extract
 cp -r src/load tmp/src/load
 cp -r src/notebooks tmp/src/notebooks
 cp -r src/transform tmp/src/transform
+cp -r src/utils tmp/src/utils
 
 # Create data folder
 mkdir -p tmp/data
@@ -21,6 +22,7 @@ mkdir -p tmp/data/interim
 mkdir -p tmp/data/processed
 mkdir -p tmp/data/chroma
 mkdir -p tmp/data/raw
+mkdir -p tmp/data/checkpoints
 
 # Create models folder
 mkdir -p tmp/src/models
