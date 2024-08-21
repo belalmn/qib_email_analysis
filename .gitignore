@@ -2,6 +2,7 @@ data/processed/*
 data/raw/*
 data/interim/*
 data/chroma/*
+data/checkpoints/*
 models/
 !models/__init__.py
 *.pyc

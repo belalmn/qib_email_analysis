@@ -11,27 +11,28 @@ from tqdm.auto import tqdm
 
 
 class SentenceEmbedding(EmbeddingFunction[Documents]):
-    def __init__(self) -> None:
-        self.model = SentenceTransformer("src/models/all-MiniLM-L6-v2")
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
+        self.model = SentenceTransformer(model_name)
 
     def __call__(self, input) -> Embeddings:
         # embed the documents somehow
         embeddings = []
-        for doc in tqdm(input):
-            embedding = self.model.encode(doc, show_progress_bar=False)
+        pool = self.model.start_multi_process_pool()
+        docs = [str(doc) for doc in input]
+        for embedding in tqdm(self.model.encode_multi_process(docs, pool=pool)):
             embeddings.append(embedding.tolist())
         return embeddings
 
 
 class ChromaManager:
     def __init__(
-        self, collection_name: str, path: str = "./data/chroma"
+        self, collection_name: str, path: str = "../../data/chroma", model_name: str = "all-MiniLM-L6-v2"
     ):
         settings = Settings()
         settings.allow_reset = True
         self.client = chromadb.PersistentClient(path=path, settings=settings)
         self.collection = self.client.get_or_create_collection(
-            name=collection_name, embedding_function=SentenceEmbedding()
+            name=collection_name, embedding_function=SentenceEmbedding(model_name)
         )
 
     def add_documents_from_df(self, df: pd.DataFrame):

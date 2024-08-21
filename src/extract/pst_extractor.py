@@ -41,8 +41,11 @@ class PSTExtractor:
 
         for file_path in self.file_paths:
             logging.info(f"Opening {file_path} for extraction")
-            messages = self.extract_messages_from_pst(file_path)
-            self.messages.extend(messages)
+            folder = self.retrieve_folder(file_path)
+            if folder:
+                logging.info(f"Extracting messages from {file_path}")
+                messages = self.extract_messages_from_pst(folder)
+                self.messages.extend(messages)
 
         logging.info(f"Found {len(self.messages)} messages in total")
 
@@ -69,12 +72,68 @@ class PSTExtractor:
         self.message_df = message_df
         logging.info(f"Extracted {len(message_df)} messages")
 
-    def extract_messages_from_pst(self, file_path: str) -> List[pypff.message]:
-        pst: pypff.file = self.open_pst_file(file_path)
-        outlook_data_file: pypff.folder = self.get_outlook_data_file_from_pst(pst)
-        folders: Dict[str, pypff.folder] = self.get_pypff_folders(outlook_data_file)
-        inbox = folders["Inbox"]
-        message_array = [message for message in inbox.sub_messages]
+    def open_pst_file(self, file_path: str) -> pypff.file:
+        pst: pypff.file = pypff.file()
+        pst.open(file_path)
+        return pst
+
+    def get_outlook_data_file_from_pst(self, pst: pypff.file) -> pypff.folder:
+        root: pypff.folder = pst.get_root_folder()
+        root_folders: List[pypff.folder] = [
+            root.get_sub_folder(i) for i in range(root.get_number_of_sub_folders())
+        ]
+        data: Dict[str, pypff.folder] = {i.get_name(): i for i in root_folders}
+        return data["Top of Outlook data file"]
+
+    def get_pypff_folders(self, folder: pypff.folder) -> Dict[str, pypff.folder]:
+        folders: List[pypff.folder] = [
+            folder.get_sub_folder(i) for i in range(folder.get_number_of_sub_folders())
+        ]
+        folders.append(folder)
+        return {i.get_name(): i for i in folders}
+
+    def retrieve_message(self, message: pypff.message) -> pypff.message:
+        return message
+
+    def retrieve_folder(self, file_path: str) -> Optional[pypff.folder]:
+        try:
+            pst: pypff.file = self.open_pst_file(file_path)
+            outlook_data_file: pypff.folder = self.get_outlook_data_file_from_pst(pst)
+            folders: Dict[str, pypff.folder] = self.get_pypff_folders(outlook_data_file)
+
+            folder_info = sorted([(name, len(folder.sub_messages)) for name, folder in folders.items()], key=lambda x: x[1], reverse=True)
+            logging.info(f"Found {len(folders)} folders:\n\t" + "\n\t".join([f"{name}: {count} messages" for name, count in folder_info]))
+
+            if "Inbox" in folders:
+                return folders["Inbox"]
+            elif len(outlook_data_file.sub_messages) > 0:
+                logging.info(f"Using Outlook data file folder")
+                return outlook_data_file
+            else:
+                logging.error("Inbox folder not found, and Outlook data file folder is empty")
+                return None
+        except Exception as e:
+            logging.error(f"Error retrieving folder from {file_path}: {e}")
+            return None
+
+    def extract_messages_from_pst(self, folder: pypff.folder) -> List[pypff.message]:
+        sub_messages = list(folder.sub_messages)
+        total = len(sub_messages)
+
+        num_processes = mp.cpu_count()
+        chunk_size = int(total / num_processes)
+
+        logging.info(f"Using {num_processes} processes with a chunk size of {chunk_size}")
+
+        with Pool(processes=num_processes) as pool:
+            with tqdm(total=total) as pbar:
+                message_array = []
+                for message in pool.imap_unordered(
+                    self.retrieve_message, sub_messages, chunksize=chunk_size
+                ):
+                    message_array.append(message)
+                    pbar.update(1)
+
         return message_array
 
     def get_missing_message_ids(self, message_df: pd.DataFrame) -> Set[str]:
@@ -143,13 +202,9 @@ class PSTExtractor:
             "references": references,
         }
 
-    # def parse_messages(self, messages: List[pypff.message]) -> pd.DataFrame:
-    #     df_list = [pd.DataFrame([self.parse_message(msg)]) for msg in tqdm(messages)]
-    #     return pd.concat(df_list)
-
     def parse_messages(self, messages: List[pypff.message]) -> pd.DataFrame:
-        num_processes = mp.cpu_count()  # Get the number of CPU cores
-        chunk_size = max(1, len(messages) // num_processes)  # Determine chunk size
+        num_processes = mp.cpu_count()
+        chunk_size = max(1, len(messages) // num_processes)
 
         logging.info(f"Using {num_processes} processes with a chunk size of {chunk_size}")
 
@@ -160,29 +215,5 @@ class PSTExtractor:
                 for result in pool.imap_unordered(self.parse_message, messages, chunksize=chunk_size):
                     results.append(result)
                     pbar.update(1)
-            # results = list(tqdm(
-            #     pool.imap(self.parse_message, messages, chunksize=chunk_size),
-            #     total=len(messages),
-            #     desc="Parsing messages"
-            # ))
 
         return pd.DataFrame(results)
-
-    def open_pst_file(self, file_path: str) -> pypff.file:
-        pst: pypff.file = pypff.file()
-        pst.open(file_path)
-        return pst
-
-    def get_outlook_data_file_from_pst(self, pst: pypff.file) -> pypff.folder:
-        root: pypff.folder = pst.get_root_folder()
-        root_folders: List[pypff.folder] = [
-            root.get_sub_folder(i) for i in range(root.get_number_of_sub_folders())
-        ]
-        data: Dict[str, pypff.folder] = {i.get_name(): i for i in root_folders}
-        return data["Top of Outlook data file"]
-
-    def get_pypff_folders(self, folder: pypff.folder) -> Dict[str, pypff.folder]:
-        folders: List[pypff.folder] = [
-            folder.get_sub_folder(i) for i in range(folder.get_number_of_sub_folders())
-        ]
-        return {i.get_name(): i for i in folders}

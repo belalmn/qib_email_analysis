@@ -31,8 +31,8 @@ def get_response_time(df: pd.DataFrame) -> pd.DataFrame:
         if previous_message_id:
             previous_row = df.loc[df["message_id"] == previous_message_id]
             if len(previous_row) > 0:
-                previous_submit_time = datetime.fromisoformat(previous_row["submit_time"].iloc[0])
-                current_submit_time = datetime.fromisoformat(row["submit_time"])
+                previous_submit_time = datetime.fromisoformat(str(previous_row["submit_time"].iloc[0]))
+                current_submit_time = datetime.fromisoformat(str(row["submit_time"]))
                 response_time = (current_submit_time - previous_submit_time).total_seconds()
                 df.at[index, "response_time"] = response_time
     return df
@@ -64,8 +64,8 @@ def clean_text(text: Optional[str]) -> str:
 #     tokens = nltk.word_tokenize(text)
 #     tokens = [t.lower() for t in tokens if t.isalpha()]
 #     tokens = [t for t in tokens if t not in stopwords.words("english")]
-#     stemmer = PorterStemmer()
-#     lemmatizer = WordNetLemmatizer()
-#     tokens = [lemmatizer.lemmatize(stemmer.stem(t)) for t in tokens]
+#     # stemmer = PorterStemmer()
+#     # lemmatizer = WordNetLemmatizer()
+#     # tokens = [lemmatizer.lemmatize(stemmer.stem(t)) for t in tokens]
 #     text = " ".join(tokens)
 #     return text

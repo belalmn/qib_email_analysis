@@ -6,8 +6,6 @@ import torch
 import transformers
 from tqdm import tqdm
 
-from src.transform.llm_tools import invoke_llm
-
 tqdm.pandas()
 
 classes = [
@@ -57,5 +55,4 @@ def classify_categories(df: pd.DataFrame) -> pd.DataFrame:
     df["category"] = df["clean_text"].progress_apply(lambda x: _classify_category(str(x)))
     exploded_df = df.explode("category")
     exploded_df["category"] = exploded_df["category"].astype("category")
-    df = exploded_df.drop(columns=["category"])
     return df[["message_id", "category"]]

@@ -6,16 +6,26 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class Config(BaseModel):
     model_config = ConfigDict(strict=True)
-    pst_file_path: str = Field(default="./data/raw/emails.pst")
-    output_directory: str = Field(default="./data/processed/")
-    chunk_size: int = Field(default=250, ge=1)
+
+    # LLM
+    use_ollama: bool = Field(default=False)
+    llm_model_name: str = Field(default="microsoft/Phi-3-mini-4k-instruct")
+
+    # Embeddings
+    embedding_model_name: str = Field(default="all-MiniLM-L6-v2")
+
+    # PST
+    pst_directory: str = Field(default="../../data/raw/")
+    output_directory: str = Field(default="../../data/processed/")
+
+    # Database
     db_host: str = Field(default="localhost")
     db_user: str = Field(default="root")
     db_name: str = Field(default="email_analysis")
     db_password: str = Field(default="password")
 
     def normalize_paths(self):
-        self.pst_file_path = path.normcase(self.pst_file_path)
+        self.pst_directory = path.normcase(self.pst_directory)
         self.output_directory = path.normcase(self.output_directory)
 
     @classmethod

@@ -1,9 +1,10 @@
+import asyncio
+import json
 from typing import Dict, List, Union
 
 import pandas as pd
-import json
 
-from src.transform.llm_tools import invoke_llm
+from src.transform.llm_invoker import LLMInvoker
 
 TEMPLATE = """
 # Arabic and English Email Summarization
@@ -60,11 +61,7 @@ Now, please summarize the following email in English:
 """
 
 
-def summarize_messages(df: pd.DataFrame) -> pd.DataFrame:
-    def _summarize_message(message: str) -> str:
-        prompt = f"{TEMPLATE}\n{message}\n\nSummary:"
-        result = invoke_llm(prompt)
-        return result
-
-    df["summary"] = df["clean_text"].progress_apply(lambda x: _summarize_message(str(x)))
+def summarize_messages(df: pd.DataFrame, llm_invoker: LLMInvoker) -> pd.DataFrame:
+    df.loc[:, "prompt"] = df["clean_text"].apply(lambda x: f"{TEMPLATE}\n{x}\n\nSummary:")
+    df.loc[:, "summary"] = llm_invoker.invoke_llms_df(df, "prompt")
     return df[["message_id", "summary"]]

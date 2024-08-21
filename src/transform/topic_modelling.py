@@ -1,3 +1,4 @@
+import logging
 import re
 from collections import Counter
 from typing import Any, Dict, List, Tuple, Union
@@ -11,7 +12,7 @@ from sklearn.preprocessing import normalize
 from tqdm import tqdm
 from wordcloud import WordCloud
 
-from src.transform.llm_tools import invoke_llm
+from src.transform.llm_invoker import LLMInvoker
 
 tqdm.pandas()
 
@@ -20,6 +21,7 @@ class TopicModellor:
     def __init__(
         self,
         message_df: pd.DataFrame,
+        llm_invoker: LLMInvoker,
         n_components_svd: int = 50,
         min_cluster_size: int = 10,
         min_samples: int = 5,
@@ -28,12 +30,8 @@ class TopicModellor:
         self.min_cluster_size = min_cluster_size
         self.min_samples = min_samples
 
-        topic_df = self.cluster_topics(message_df)[["message_id", "topic_id", "clean_text"]]
-        topic_descriptions = self.get_topic_descriptions(topic_df)[["topic_id", "description"]]
-
-        self.message_df = topic_df[["message_id", "topic_id"]].merge(message_df, on="message_id")
-        self.topics_df = topic_df.merge(topic_descriptions, on="topic_id")[["topic_id", "description"]]
-        self.word_frequencies = self.get_topic_word_frequencies(topic_df)[["topic_id", "word", "frequency"]]
+        logging.info("Clustering messages using HDBSCAN")
+        self.topic_df = self.cluster_topics(message_df)[["message_id", "topic_id", "clean_text"]]
 
     def cluster_topics(self, message_df: pd.DataFrame) -> pd.DataFrame:
         # Retrieve embeddings from embedding column in df
@@ -106,14 +104,12 @@ class TopicModellor:
         wordcloud.generate(clean_text)
         return wordcloud
 
-    def get_topic_descriptions(self, message_df: pd.DataFrame) -> pd.DataFrame:
+    def get_topic_descriptions(self, df: pd.DataFrame, llm_invoker: LLMInvoker) -> pd.DataFrame:
         topic_descriptions = []
-        topics_to_describe = (
-            message_df[message_df["topic_id"] != -1].groupby("topic_id").filter(lambda x: len(x) >= 5)
-        )
-        for topic_id in topics_to_describe["topic_id"].unique():
-            topic_df = message_df[message_df["topic_id"] == topic_id]
-            sample_messages = topic_df.sample(n=5)["clean_text"].tolist()
+        topics_to_describe = df[df["topic_id"] != -1].groupby("topic_id").filter(lambda x: len(x) >= 5)
+        for topic_id in tqdm(topics_to_describe["topic_id"].unique(), desc="Generating topic descriptions"):
+            topic_df = df[df["topic_id"] == topic_id]
+            sample_messages = topic_df.sample(n=3)["clean_text"].tolist()
             prompt = f"""
             You will be given a set of sample emails that belong to the same topic. Your task is to describe the overall topic of these emails in one short and concise sentence.
 
@@ -161,7 +157,7 @@ class TopicModellor:
 
             Description:
             """
-            description = invoke_llm(prompt).strip()
+            description = llm_invoker.invoke_llm(prompt).strip()
             description_df = pd.DataFrame({"topic_id": [topic_id], "description": [description]})
             topic_descriptions.append(description_df)
         return pd.concat(topic_descriptions, ignore_index=True)[["topic_id", "description"]]

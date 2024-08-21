@@ -1,9 +1,10 @@
-from typing import Dict, List, Union, Tuple
+import asyncio
+import json
+from typing import Dict, List, Tuple, Union, Optional
 
 import pandas as pd
-import json
 
-from src.transform.llm_tools import invoke_llm
+from src.transform.llm_invoker import LLMInvoker
 
 TEMPLATE = """
 Your task is to extract specific entities from emails sent to a bank (info@qib.com.qa). Please identify and extract the following entities if present:
@@ -74,25 +75,28 @@ Input:
 """
 
 
-def extract_entities_from_messages(df: pd.DataFrame) -> pd.DataFrame:
-    def _extract_entities_from_message(message: str) -> List[Tuple[str, str]]:
-        prompt = f"{TEMPLATE}\n{message}\n\nOutput:"
-        result = invoke_llm(prompt)
+def extract_entities_from_messages(df: pd.DataFrame, llm_invoker: LLMInvoker) -> pd.DataFrame:
+    def _extract_entities_from_json(llm_response: str) -> List[Tuple[str, str]]:
         entities = []
         try:
-            output = json.loads(result)
+            output = json.loads(llm_response)
         except json.JSONDecodeError:
             output = []
-        for entity_type, entity_value in output.items():
-            if isinstance(entity_value, str):
-                entities.append((entity_type, entity_value))
-            elif isinstance(entity_value, list):
-                for e in entity_value:
-                    entities.append((entity_type, e))
+        if isinstance(output, dict):
+            for entity_type, entity_value in output.items():
+                if isinstance(entity_value, str):
+                    entities.append((entity_type, entity_value))
+                elif isinstance(entity_value, list):
+                    for e in entity_value:
+                        entities.append((entity_type, e))
         return entities
 
-    df["entities"] = df["clean_text"].progress_apply(lambda x: _extract_entities_from_message(str(x)))
+    df.loc[:, "prompt"] = df["clean_text"].apply(lambda x: f"{TEMPLATE}\n{x}\n\nOutput:")
+    result = llm_invoker.invoke_llms_df(df, "prompt")
+    df.loc[:, "entities"] = result.progress_apply(lambda x: _extract_entities_from_json(str(x)))
     exploded_df = df.explode("entities")
-    exploded_df[["entity_type", "entity_value"]] = pd.DataFrame(exploded_df["entities"].tolist(), index=exploded_df.index)
+    exploded_df[["entity_type", "entity_value"]] = pd.DataFrame(
+        exploded_df["entities"].tolist(), index=exploded_df.index
+    )
     df = exploded_df.drop(columns=["entities"])
     return df[["message_id", "entity_type", "entity_value"]]

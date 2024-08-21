@@ -56,7 +56,11 @@ def parse_body(body: Optional[bytes], encoding: Optional[str]) -> Optional[str]:
 
 
 def parse_email_threading(df: pd.DataFrame) -> pd.DataFrame:
-    df["first_in_thread"] = df["previous_message_id"].isnull() & df["references"].isnull()
+    df["first_in_thread"] = (
+        df["previous_message_id"].isnull() & df["references"].isnull()
+        if "references" in df.columns and "previous_message_id" in df.columns
+        else None
+    )
     df["num_previous_messages"] = df["references"].str.count(",") + 1
     df["thread_id"] = df["references"].apply(lambda x: x.split(",")[0] if x else None)
     return df
@@ -64,7 +68,7 @@ def parse_email_threading(df: pd.DataFrame) -> pd.DataFrame:
 
 def parse_domain_info(df: pd.DataFrame) -> pd.DataFrame:
     def get_domain(address: Optional[str]) -> str:
-        if address:
+        if address and "@" in address:
             return address.strip().split("@")[1]
         return ""
 
