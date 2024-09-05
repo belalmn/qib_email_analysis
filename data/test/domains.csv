@@ -1,0 +1,7 @@
+message_id,domain
+MSG001,example.com
+MSG001,company.com
+MSG002,example.com
+MSG002,company.com
+MSG003,spam.com
+MSG003,example.com

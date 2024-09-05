@@ -1,0 +1,6 @@
+message_id,entity_type,entity_value
+MSG001,person,John Doe
+MSG001,organization,Company X
+MSG002,person,Jane Smith
+MSG002,organization,Company Y
+MSG003,product,Scam Product

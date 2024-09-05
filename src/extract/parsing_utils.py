@@ -87,8 +87,8 @@ def parse_domain_info(df: pd.DataFrame) -> pd.DataFrame:
 
     df["sender_domain"] = df["from_address"].apply(get_domain)
     df["all_domains"] = df.apply(extract_unique_domains, axis=1)
-    df["is_internal"] = df["all_domains"].apply(
-        lambda x: all("qib" in domain for domain in str(x).split(", "))
+    df["is_internal"] = df["sender_domain"].apply(
+        lambda x: "qib" in x #any("qib" in domain for domain in str(x).split(", "))
     )
     return df
 

@@ -53,6 +53,10 @@ def clean_text(text: Optional[str]) -> str:
 
     text = parts[0].strip() if len(parts) > 1 else text
     text = re.sub(r"[\n\r\t| -]+", " ", text, flags=re.MULTILINE)
+    caution_notes=[r"CAUTION: This email originated from outside QIB. Do not click any links or open attachments unless you are sure of the safety of the contents.",
+                 r"""CAUTION: This email originated from outside of the organization. Do not click links or open attachments unless you recognize the sender and know the content is safe"""]
+    for caution_note in caution_notes:
+        text = re.sub(caution_note, "", text)
 
     # Remove any lines that are just whitespace
     text = "\n".join([line for line in text.split("\n") if line.strip()])

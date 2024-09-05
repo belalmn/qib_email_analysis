@@ -1,0 +1,4 @@
+message_id,topic_id,is_spam,subject,subject_prefix,submit_time,delivery_time,html_body,plain_text_body,from_name,previous_message_id,first_in_thread,num_previous_messages,thread_id,sender_domain,is_internal,clean_text,response_time,language
+MSG001,TOPIC1,0,Test Subject 1,RE:,2023-09-01 10:00:00,2023-09-01 10:01:00,"<p>Hello, this is a test.</p>","Hello, this is a test.",John Doe,"",0,1,THREAD1,example.com,1,"Hello this is a test",60,en
+MSG002,TOPIC1,0,Test Subject 2,FW:,2023-09-01 11:00:00,2023-09-01 11:01:00,"<p>Forwarding important information.</p>","Forwarding important information.",Jane Smith,MSG001,0,2,THREAD1,example.com,1,"Forwarding important information",120,en
+MSG003,TOPIC2,1,Buy Now!,"",2023-09-02 09:00:00,2023-09-02 09:01:00,"<p>Special offer just for you!</p>","Special offer just for you!",Spammer,"",1,1,THREAD2,spam.com,0,"Special offer just for you",0,en

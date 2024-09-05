@@ -1,6 +1,4 @@
 {
-    "use_ollama": false,
-    "llm_model_name": "microsoft/Phi-3-mini-4k-instruct",
     "embedding_model_name": "all-MiniLM-L6-v2",
     "pst_directory": "../../data/raw",
     "output_directory": "../../data/processed",

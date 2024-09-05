@@ -1,0 +1,4 @@
+message_id,category
+MSG001,inquiry
+MSG002,internal_communication
+MSG003,spam

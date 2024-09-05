@@ -1,0 +1,8 @@
+message_id,address_type,address
+MSG001,from,john@example.com
+MSG001,to,support@company.com
+MSG002,from,jane@example.com
+MSG002,to,team@company.com
+MSG002,cc,manager@company.com
+MSG003,from,spammer@spam.com
+MSG003,to,victim@example.com

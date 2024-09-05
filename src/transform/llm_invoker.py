@@ -30,12 +30,13 @@ class LLMInvoker:
                 model=model_name,
                 tokenizer=tokenizer,
                 device="cuda" if torch.cuda.is_available() else "cpu",
-                max_length=3000,
+                max_length=10000,
                 torch_dtype=torch.bfloat16,
-                trust_remote_code=True,
-                do_sample=True,
+                trust_remote_code=True
             )
+            logging.info(f"Pipeline created for model {model_name}")
             self.llm = HuggingFacePipeline(pipeline=pipe)
+            logging.info(f"LangChain LLM created for model {model_name}")
 
     def invoke_llm(self, prompt: str) -> str:
         return self.llm.invoke(prompt)

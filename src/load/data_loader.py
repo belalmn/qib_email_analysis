@@ -4,6 +4,7 @@ from typing import Any, List, Optional, Union
 import pandas as pd
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+from tqdm import tqdm
 
 from src.database.database import Database
 from src.database.db_models import (
@@ -29,6 +30,8 @@ class DataLoader:
         self.database.drop_all_tables()
 
     def create_tables(self) -> None:
+        Base.metadata.drop_all(bind=self.database.engine)
+        logging.info("All tables have been dropped from the database.")
         Base.metadata.create_all(bind=self.database.engine)
         logging.info("All tables have been created in the database.")
 
@@ -42,10 +45,9 @@ class DataLoader:
         self.database.execute_in_session(lambda session: load_method(session, df))
 
     def _load_messages(self, session: Session, df: pd.DataFrame) -> None:
-        for _, row in df.iterrows():
+        for _, row in tqdm(df.iterrows()):
             try:
                 topic = self._get_or_create(session, Topic, topic_id=row["topic_id"])
-
                 message = Message(
                     message_id=row["message_id"],
                     topic_id=topic.topic_id,
@@ -70,6 +72,19 @@ class DataLoader:
                 session.add(message)
             except SQLAlchemyError as e:
                 logging.error(f"Failed to insert message: {e}")
+                session.rollback()
+                continue
+
+    def _load_topics(self, session: Session, df: pd.DataFrame) -> None:
+        for _, row in df.iterrows():
+            try:
+                topic = Topic(
+                    topic_id=row["topic_id"],
+                    topic_description=row["topic_description"],
+                )
+                session.add(topic)
+            except SQLAlchemyError as e:
+                logging.error(f"Failed to insert topic: {e}")
                 session.rollback()
                 continue
 
