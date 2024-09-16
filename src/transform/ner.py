@@ -1,10 +1,24 @@
 import asyncio
 import json
+import re
 from typing import Dict, List, Tuple, Union, Optional
 
 import pandas as pd
 
 from src.transform.llm_invoker import LLMInvoker
+
+# Define regular expressions for different entities
+ENTITY_PATTERNS = {
+    "QID": r"\b\d{11}\b",  # 11-digit Qatar ID
+    "Mobile Number": r"\+?\d{1,4}[\s-]?\d{1,4}[\s-]?\d{6,10}",  # International or local numbers
+    "Account Number": r"\b\d{8,12}\b",  # General account number pattern with 8-12 digits
+    "Passport Number": r"\b[A-Z0-9]{5,9}\b",  # Simplistic passport number pattern
+    "Email Address": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",  # Email pattern
+    "IBAN": r"\b[A-Z]{2}\d{2}[A-Z0-9]{1,30}\b",  # IBAN
+    "Transaction Amount": r"\b[\$|QAR|USD|EUR]?\s?\d{1,3}(?:,\d{3})*(?:\.\d{2})?\b",  # Currency with amount
+    "Transaction Date": r"\b\d{4}-\d{2}-\d{2}\b",  # Date in YYYY-MM-DD format
+    "Date of Birth": r"\b\d{4}-\d{2}-\d{2}\b",  # Same as Transaction Date for DOB
+}
 
 TEMPLATE = """
 Your task is to extract specific entities from emails sent to a bank (info@qib.com.qa). Please identify and extract the following entities if present:
@@ -75,7 +89,18 @@ Input:
 """
 
 
-def extract_entities_from_messages(df: pd.DataFrame, llm_invoker: LLMInvoker) -> pd.DataFrame:
+def extract_entities_using_regex(text: str) -> List[Tuple[str, str]]:
+    """Extract entities from the text using predefined regex patterns."""
+    entities = []
+    for entity_type, pattern in ENTITY_PATTERNS.items():
+        matches = re.findall(pattern, text)
+        if matches:
+            for match in matches:
+                entities.append((entity_type, match))
+    return entities
+
+
+def extract_entities_from_messages(df: pd.DataFrame, llm_invoker: LLMInvoker, use_regex: bool = False) -> pd.DataFrame:
     def _extract_entities_from_json(llm_response: str) -> List[Tuple[str, str]]:
         entities = []
         try:
@@ -91,12 +116,19 @@ def extract_entities_from_messages(df: pd.DataFrame, llm_invoker: LLMInvoker) ->
                         entities.append((entity_type, e))
         return entities
 
-    df.loc[:, "prompt"] = df["clean_text"].apply(lambda x: f"{TEMPLATE}\n{x}\n\nOutput:")
-    result = llm_invoker.invoke_llms_df(df, "prompt")
-    df.loc[:, "entities"] = result.progress_apply(lambda x: _extract_entities_from_json(str(x)))
+    if use_regex:
+        # Apply regex-based entity extraction
+        df["entities"] = df["clean_text"].apply(lambda x: extract_entities_using_regex(x))
+    else:
+        # Apply LLM-based entity extraction
+        df["prompt"] = df["clean_text"].apply(lambda x: f"{TEMPLATE}\n{x}\n\nOutput:")
+        result = llm_invoker.invoke_llms_df(df, "prompt")
+        df["entities"] = result.progress_apply(lambda x: _extract_entities_from_json(str(x)))
+
     exploded_df = df.explode("entities")
     exploded_df[["entity_type", "entity_value"]] = pd.DataFrame(
         exploded_df["entities"].tolist(), index=exploded_df.index
     )
     df = exploded_df.drop(columns=["entities"])
     return df[["message_id", "entity_type", "entity_value"]]
+
