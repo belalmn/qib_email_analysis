@@ -35,6 +35,19 @@ THRESHOLD = 0.09
 
 
 def classify_products(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Classify products mentioned in the emails.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataframe containing the emails to classify.
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataframe with the message_id and product columns.
+    """
     def _classify_product(message: str) -> List[str]:
         result = category_classifier(message, candidate_labels=products, multi_label=True)
         labels = result["labels"]

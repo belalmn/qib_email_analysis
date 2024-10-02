@@ -21,6 +21,15 @@ tqdm.pandas()
 
 
 def get_language(message: str) -> Optional[str]:
+    """
+    Identify the language of the given message.
+
+    Args:
+    message (str): The string message to identify the language from.
+
+    Returns:
+    Optional[str]: The identified language code or None if the language could not be identified.
+    """
     language = identifier.classify(message)[0]
     if language in ["la", "qu"]:
         return "en"
@@ -28,6 +37,18 @@ def get_language(message: str) -> Optional[str]:
 
 
 def get_response_time(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculate the response time for each message in the dataframe.
+
+    This function takes a dataframe and adds a new column "response_time" which contains the time difference in seconds
+    between the submit time of the current message and the submit time of the previous message of the same thread.
+
+    Args:
+    df (pd.DataFrame): Dataframe containing the messages.
+
+    Returns:
+    pd.DataFrame: Dataframe with the added "response_time" column.
+    """
     df["response_time"] = None
     for index, row in tqdm(df.iterrows(), total=len(df)):
         previous_message_id = row["previous_message_id"]
@@ -42,6 +63,18 @@ def get_response_time(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def clean_text(text: Optional[str]) -> str:
+    """
+    Clean the given text by removing any signature blocks and unnecessary whitespace.
+
+    This function takes a string and removes any signature blocks, unnecessary whitespace, and caution notes
+    that are commonly added to emails.
+
+    Args:
+    text (str): The string to clean.
+
+    Returns:
+    str: The cleaned string.
+    """
     if not text or not isinstance(text, str):
         return ""
     parts = re.split(
@@ -62,17 +95,3 @@ def clean_text(text: Optional[str]) -> str:
     text = "\n".join([line for line in text.split("\n") if line.strip()])
 
     return text
-
-
-# def normalize_text(text: Optional[str]) -> str:
-#     if not text or not isinstance(text, str):
-#         return ""
-
-#     tokens = nltk.word_tokenize(text)
-#     tokens = [t.lower() for t in tokens if t.isalpha()]
-#     tokens = [t for t in tokens if t not in stopwords.words("english")]
-#     # stemmer = PorterStemmer()
-#     # lemmatizer = WordNetLemmatizer()
-#     # tokens = [lemmatizer.lemmatize(stemmer.stem(t)) for t in tokens]
-#     text = " ".join(tokens)
-#     return text

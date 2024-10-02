@@ -23,13 +23,18 @@ from src.database.db_models import (
 
 
 class DataLoader:
+    """A class for loading data into the database."""
+
     def __init__(self, database: Database):
+        """Initializes the DataLoader with the provided database."""
         self.database = database
 
     def clear_all_data(self) -> None:
+        """Clears all data from the database."""
         self.database.drop_all_tables()
 
     def create_tables(self) -> None:
+        """Creates all tables in the database."""
         Base.metadata.drop_all(bind=self.database.engine)
         logging.info("All tables have been dropped from the database.")
         Base.metadata.create_all(bind=self.database.engine)
@@ -45,6 +50,7 @@ class DataLoader:
         self.database.execute_in_session(lambda session: load_method(session, df))
 
     def _load_messages(self, session: Session, df: pd.DataFrame) -> None:
+        """Loads messages from the dataframe into the database."""
         for _, row in tqdm(df.iterrows()):
             try:
                 topic = self._get_or_create(session, Topic, topic_id=row["topic_id"])
@@ -76,6 +82,7 @@ class DataLoader:
                 continue
 
     def _load_topics(self, session: Session, df: pd.DataFrame) -> None:
+        """Loads topics from the dataframe into the database."""
         for _, row in df.iterrows():
             try:
                 topic = Topic(
@@ -89,6 +96,7 @@ class DataLoader:
                 continue
 
     def _load_addresses(self, session: Session, df: pd.DataFrame) -> None:
+        """Loads addresses from the dataframe into the database."""
         for _, row in df.iterrows():
             try:
                 message = self._get_or_create(session, Message, message_id=row["message_id"])
@@ -105,6 +113,7 @@ class DataLoader:
                 continue
 
     def _load_references(self, session: Session, df: pd.DataFrame) -> None:
+        """Loads references from the dataframe into the database."""
         for _, row in df.iterrows():
             try:
                 message = self._get_or_create(session, Message, message_id=row["message_id"])
@@ -120,6 +129,7 @@ class DataLoader:
                 continue
 
     def _load_domains(self, session: Session, df: pd.DataFrame) -> None:
+        """Loads domains from the dataframe into the database."""
         for _, row in df.iterrows():
             try:
                 message = self._get_or_create(session, Message, message_id=row["message_id"])
@@ -135,6 +145,7 @@ class DataLoader:
                 continue
 
     def _load_classifications(self, session: Session, df: pd.DataFrame) -> None:
+        """Loads classifications from the dataframe into the database."""
         for _, row in df.iterrows():
             try:
                 message = self._get_or_create(session, Message, message_id=row["message_id"])
@@ -150,6 +161,7 @@ class DataLoader:
                 continue
 
     def _load_products(self, session: Session, df: pd.DataFrame) -> None:
+        """Loads products from the dataframe into the database."""
         for _, row in df.iterrows():
             try:
                 message = self._get_or_create(session, Message, message_id=row["message_id"])
@@ -165,6 +177,7 @@ class DataLoader:
                 continue
 
     def _load_entities(self, session: Session, df: pd.DataFrame) -> None:
+        """Loads entities from the dataframe into the database."""
         for _, row in df.iterrows():
             try:
                 message = self._get_or_create(session, Message, message_id=row["message_id"])
@@ -181,6 +194,7 @@ class DataLoader:
                 continue
 
     def _load_summaries(self, session: Session, df: pd.DataFrame) -> None:
+        """Loads summaries from the dataframe into the database."""
         for _, row in df.iterrows():
             try:
                 message = self._get_or_create(session, Message, message_id=row["message_id"])
@@ -196,6 +210,7 @@ class DataLoader:
                 continue
 
     def _load_word_frequencies(self, session: Session, df: pd.DataFrame) -> None:
+        """Loads word frequencies from the dataframe into the database."""
         for _, row in df.iterrows():
             try:
                 topic = self._get_or_create(session, Topic, topic_id=row["topic_id"])
@@ -212,6 +227,7 @@ class DataLoader:
                 continue
 
     def _get_or_create(self, session: Session, model: type, **kwargs: Any) -> Any:
+        """Gets an instance of the given model if it exists, otherwise creates a new one."""
         instance = session.query(model).filter_by(**kwargs).first()
         if instance:
             return instance
@@ -220,3 +236,4 @@ class DataLoader:
             session.add(instance)
             session.flush()
             return instance
+

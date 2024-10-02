@@ -29,12 +29,24 @@ tqdm.pandas()
 
 
 class PSTExtractor:
+    """
+    Extracts emails from .pst files.
+    """
+
     def __init__(
         self,
         file_paths: Union[str, List[str]],
         sample: Optional[int] = None,
         fill_missing_data: bool = False,
     ):
+        """
+        Initializes the PSTExtractor.
+
+        Args:
+            file_paths: A path to a .pst file or a list of paths to .pst files.
+            sample: The number of messages to sample from the extracted data.
+            fill_missing_data: Whether to fill the missing information in the extracted data.
+        """
         self.file_paths = file_paths if isinstance(file_paths, list) else [file_paths]
         self.sample = sample
         self.messages = []
@@ -73,11 +85,29 @@ class PSTExtractor:
         logging.info(f"Extracted {len(message_df)} messages")
 
     def open_pst_file(self, file_path: str) -> pypff.file:
+        """
+        Opens a .pst file.
+
+        Args:
+            file_path: The path to the .pst file.
+
+        Returns:
+            A pypff.file object.
+        """
         pst: pypff.file = pypff.file()
         pst.open(file_path)
         return pst
 
     def get_outlook_data_file_from_pst(self, pst: pypff.file) -> pypff.folder:
+        """
+        Gets the "Top of Outlook data file" folder from the .pst file.
+
+        Args:
+            pst: The pypff.file object.
+
+        Returns:
+            A pypff.folder object.
+        """
         root: pypff.folder = pst.get_root_folder()
         root_folders: List[pypff.folder] = [
             root.get_sub_folder(i) for i in range(root.get_number_of_sub_folders())
@@ -86,6 +116,15 @@ class PSTExtractor:
         return data["Top of Outlook data file"]
 
     def get_pypff_folders(self, folder: pypff.folder) -> Dict[str, pypff.folder]:
+        """
+        Gets the subfolders of the given folder.
+
+        Args:
+            folder: The folder to get the subfolders from.
+
+        Returns:
+            A dictionary of the subfolders with their names as the keys.
+        """
         folders: List[pypff.folder] = [
             folder.get_sub_folder(i) for i in range(folder.get_number_of_sub_folders())
         ]
@@ -93,9 +132,27 @@ class PSTExtractor:
         return {i.get_name(): i for i in folders}
 
     def retrieve_message(self, message: pypff.message) -> pypff.message:
+        """
+        Retrieves a message from the folder.
+
+        Args:
+            message: The message to retrieve.
+
+        Returns:
+            The retrieved message.
+        """
         return message
 
     def retrieve_folder(self, file_path: str) -> Optional[pypff.folder]:
+        """
+        Retrieves the folder from the .pst file.
+
+        Args:
+            file_path: The path to the .pst file.
+
+        Returns:
+            The folder object if it was found, otherwise None.
+        """
         try:
             pst: pypff.file = self.open_pst_file(file_path)
             outlook_data_file: pypff.folder = self.get_outlook_data_file_from_pst(pst)
@@ -117,6 +174,15 @@ class PSTExtractor:
             return None
 
     def extract_messages_from_pst(self, folder: pypff.folder) -> List[pypff.message]:
+        """
+        Extracts the messages from the folder.
+
+        Args:
+            folder: The folder to extract the messages from.
+
+        Returns:
+            A list of the extracted messages.
+        """
         sub_messages = list(folder.sub_messages)
         total = len(sub_messages)
 
@@ -137,6 +203,15 @@ class PSTExtractor:
         return message_array
 
     def get_missing_message_ids(self, message_df: pd.DataFrame) -> Set[str]:
+        """
+        Gets the missing message ids from the message dataframe.
+
+        Args:
+            message_df: The message dataframe.
+
+        Returns:
+            A set of the missing message ids.
+        """
         existing_message_ids = set(message_df["message_id"].values)
         missing_message_ids: Set[str] = set()
         for _, row in message_df.iterrows():
@@ -156,6 +231,15 @@ class PSTExtractor:
         return missing_message_ids
 
     def parse_message(self, message: pypff.message) -> Dict[str, Any]:
+        """
+        Parses a message and extracts the relevant information.
+
+        Args:
+            message: The message to parse.
+
+        Returns:
+            A dictionary of the extracted information.
+        """
         # Metadata
         from_name = safe_getattr(message, "sender_name")
         subject = safe_getattr(message, "subject")
@@ -203,6 +287,15 @@ class PSTExtractor:
         }
 
     def parse_messages(self, messages: List[pypff.message]) -> pd.DataFrame:
+        """
+        Parses the messages and extracts the relevant information.
+
+        Args:
+            messages: The list of messages to parse.
+
+        Returns:
+            A dataframe of the extracted information.
+        """
         num_processes = mp.cpu_count()
         chunk_size = max(1, len(messages) // num_processes)
 

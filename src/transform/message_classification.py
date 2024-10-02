@@ -42,6 +42,19 @@ THRESHOLD = 0.09
 
 
 def classify_categories(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Classify messages into predefined categories.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataframe containing the emails to classify.
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataframe with the message_id and category columns.
+    """
     def _classify_category(message: str) -> List[str]:
         result = category_classifier(message, candidate_labels=classes)
         labels = result["labels"]

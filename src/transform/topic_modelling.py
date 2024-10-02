@@ -18,6 +18,15 @@ tqdm.pandas()
 
 
 class TopicModellor:
+    """
+    A class for performing topic modelling and topic description using an LLM.
+    
+    Attributes:
+        n_components_svd (int): Number of components for SVD.
+        min_cluster_size (int): Minimum size for clusters.
+        min_samples (int): Minimum number of samples per cluster.
+        topic_df (pd.DataFrame): The dataframe containing messages and their assigned topics.
+    """
     def __init__(
         self,
         message_df: pd.DataFrame,
@@ -26,6 +35,16 @@ class TopicModellor:
         min_cluster_size: int = 10,
         min_samples: int = 5,
     ):
+        """
+        Initializes the TopicModellor with the provided dataframe and parameters.
+        
+        Args:
+            message_df (pd.DataFrame): Dataframe containing email messages.
+            llm_invoker (LLMInvoker): The LLMInvoker instance for generating topic descriptions.
+            n_components_svd (int): Number of components to use for dimensionality reduction.
+            min_cluster_size (int): Minimum size for clusters.
+            min_samples (int): Minimum number of samples per cluster.
+        """
         self.n_components_svd = n_components_svd
         self.min_cluster_size = min_cluster_size
         self.min_samples = min_samples
@@ -34,6 +53,15 @@ class TopicModellor:
         self.topic_df = self.cluster_topics(message_df)[["message_id", "topic_id", "clean_text"]]
 
     def cluster_topics(self, message_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Clusters messages into topics using HDBSCAN and embeddings.
+
+        Args:
+            message_df (pd.DataFrame): Dataframe containing messages and their embeddings.
+
+        Returns:
+            pd.DataFrame: Dataframe with the topic ID assigned to each message.
+        """
         # Retrieve embeddings from embedding column in df
         embeddings = message_df["embeddings"].tolist()
 
@@ -59,6 +87,15 @@ class TopicModellor:
             "bigrams": {},
             "trigrams": {},
         }
+        """
+        Generates word frequencies for each topic.
+
+        Args:
+            message_df (pd.DataFrame): Dataframe containing the clustered messages.
+
+        Returns:
+            pd.DataFrame: A dataframe containing word frequencies for each topic.
+        """
 
         # Loop through each unique topic_id
         for topic_id in tqdm(message_df["topic_id"].unique(), desc="Generating topic word frequencies"):
@@ -98,6 +135,16 @@ class TopicModellor:
         return combined_frequency_df
 
     def generate_word_cloud(self, message_df: pd.DataFrame, topic_id: int) -> pd.DataFrame:
+        """
+        Generates a word cloud for a given topic.
+
+        Args:
+            message_df (pd.DataFrame): Dataframe containing messages.
+            topic_id (int): The topic ID for which the word cloud is generated.
+
+        Returns:
+            pd.DataFrame: The generated word cloud.
+        """
         topic_df = message_df[message_df["topic_id"] == topic_id]
         clean_text = " ".join(topic_df["clean_text"])
         wordcloud = WordCloud(width=800, height=400, background_color="white", min_font_size=10)
@@ -105,6 +152,16 @@ class TopicModellor:
         return wordcloud
 
     def get_topic_descriptions(self, df: pd.DataFrame, llm_invoker: LLMInvoker) -> pd.DataFrame:
+        """
+        Generates topic descriptions using an LLM.
+
+        Args:
+            df (pd.DataFrame): Dataframe containing topics and associated messages.
+            llm_invoker (LLMInvoker): The LLMInvoker instance for generating topic descriptions.
+
+        Returns:
+            pd.DataFrame: A dataframe with topic IDs and their corresponding descriptions.
+        """
         topic_descriptions = []
         topics_to_describe = df[df["topic_id"] != -1].groupby("topic_id").filter(lambda x: len(x) >= 5)
         for topic_id in tqdm(topics_to_describe["topic_id"].unique(), desc="Generating topic descriptions"):

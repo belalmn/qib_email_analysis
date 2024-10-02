@@ -20,6 +20,7 @@ ENTITY_PATTERNS = {
     "Date of Birth": r"\b\d{4}-\d{2}-\d{2}\b",  # Same as Transaction Date for DOB
 }
 
+# Define the template for the prompt
 TEMPLATE = """
 Your task is to extract specific entities from emails sent to a bank (info@qib.com.qa). Please identify and extract the following entities if present:
 
@@ -90,7 +91,15 @@ Input:
 
 
 def extract_entities_using_regex(text: str) -> List[Tuple[str, str]]:
-    """Extract entities from the text using predefined regex patterns."""
+    """
+    Extracts entities from the text using predefined regex patterns.
+
+    Args:
+        text (str): The text to extract entities from.
+
+    Returns:
+        List[Tuple[str, str]]: A list of tuples containing entity type and extracted value.
+    """
     entities = []
     for entity_type, pattern in ENTITY_PATTERNS.items():
         matches = re.findall(pattern, text)
@@ -101,7 +110,27 @@ def extract_entities_using_regex(text: str) -> List[Tuple[str, str]]:
 
 
 def extract_entities_from_messages(df: pd.DataFrame, llm_invoker: LLMInvoker, use_regex: bool = False) -> pd.DataFrame:
+    """
+    Extracts entities from a dataframe of email messages using either regex or an LLM.
+
+    Args:
+        df (pd.DataFrame): The dataframe containing the email messages.
+        llm_invoker (LLMInvoker): The LLMInvoker instance used for LLM-based entity extraction.
+        use_regex (bool): Whether to use regex-based extraction or LLM-based extraction. Defaults to False.
+
+    Returns:
+        pd.DataFrame: A dataframe with extracted entities.
+    """
     def _extract_entities_from_json(llm_response: str) -> List[Tuple[str, str]]:
+        """
+        Parses LLM response JSON and extracts entities.
+
+        Args:
+            llm_response (str): The LLM response in JSON format.
+
+        Returns:
+            List[Tuple[str, str]]: A list of entity type and value pairs.
+        """
         entities = []
         try:
             output = json.loads(llm_response)
@@ -117,10 +146,8 @@ def extract_entities_from_messages(df: pd.DataFrame, llm_invoker: LLMInvoker, us
         return entities
 
     if use_regex:
-        # Apply regex-based entity extraction
         df["entities"] = df["clean_text"].apply(lambda x: extract_entities_using_regex(x))
     else:
-        # Apply LLM-based entity extraction
         df["prompt"] = df["clean_text"].apply(lambda x: f"{TEMPLATE}\n{x}\n\nOutput:")
         result = llm_invoker.invoke_llms_df(df, "prompt")
         df["entities"] = result.progress_apply(lambda x: _extract_entities_from_json(str(x)))
@@ -131,4 +158,3 @@ def extract_entities_from_messages(df: pd.DataFrame, llm_invoker: LLMInvoker, us
     )
     df = exploded_df.drop(columns=["entities"])
     return df[["message_id", "entity_type", "entity_value"]]
-

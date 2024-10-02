@@ -5,6 +5,15 @@ from typing import Optional
 
 
 def decode_str(string: Optional[str]) -> str:
+    """
+    Decode the given string.
+
+    Args:
+        string: The string to decode.
+
+    Returns:
+        The decoded string.
+    """
     if not string:
         return ""
     decoded, encoding = decode_header(string)[0]
@@ -14,6 +23,15 @@ def decode_str(string: Optional[str]) -> str:
 
 
 def parse_timestamp(email_date: Optional[str]) -> Optional[datetime]:
+    """
+    Parse a timestamp from an email date string.
+
+    Args:
+        email_date: The email date string to parse.
+
+    Returns:
+        The parsed datetime object.
+    """
     if not email_date:
         return None
     return parsedate_to_datetime(email_date)

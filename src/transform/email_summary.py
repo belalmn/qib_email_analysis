@@ -62,6 +62,16 @@ Now, please summarize the following email in English:
 
 
 def summarize_messages(df: pd.DataFrame, llm_invoker: LLMInvoker) -> pd.DataFrame:
+    """
+    Summarizes email messages using an LLM.
+
+    Args:
+        df (pd.DataFrame): The dataframe containing email messages.
+        llm_invoker (LLMInvoker): The LLMInvoker instance used for summarizing the messages.
+
+    Returns:
+        pd.DataFrame: A dataframe containing the original message IDs and the generated summaries.
+    """
     df.loc[:, "prompt"] = df["clean_text"].apply(lambda x: f"{TEMPLATE}\n{x}\n\nSummary:")
     df.loc[:, "summary"] = llm_invoker.invoke_llms_df(df, "prompt")
     return df[["message_id", "summary"]]

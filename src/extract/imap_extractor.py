@@ -25,7 +25,34 @@ logging.basicConfig(level=logging.INFO)
 
 
 class IMAPExtractor:
+    """
+    A class to extract and parse emails from an IMAP server.
+
+    Attributes:
+    ----------
+    username : str
+        The email account username.
+    password : str
+        The email account password.
+    server : str
+        The IMAP server address (default: 'imap.gmail.com').
+    imap : IMAP4_SSL
+        The IMAP connection object.
+    """
+
     def __init__(self, username: str, password: str, server: str = "imap.gmail.com"):
+        """
+        Initialize the IMAPExtractor with credentials and establish an IMAP connection.
+
+        Parameters:
+        ----------
+        username : str
+            The email account username.
+        password : str
+            The email account password.
+        server : str, optional
+            The IMAP server address (default: 'imap.gmail.com').
+        """
         self.username = username
         self.password = password
         self.server = server
@@ -33,15 +60,18 @@ class IMAPExtractor:
         self.imap.login(self.username, self.password)
 
     def __del__(self):
+        """Destructor method to close the IMAP connection when the object is destroyed."""
         self.close()
 
     def close(self):
+        """Logout and close the IMAP connection."""
         try:
             self.imap.logout()
         except:
             pass
 
     def list_mailboxes(self) -> None:
+        """List all available mailboxes (folders) in the IMAP account."""
         print("Available mailboxes:")
         for i, folder_info in enumerate(self.imap.list()[1], 1):
             if not isinstance(folder_info, bytes):
@@ -55,7 +85,23 @@ class IMAPExtractor:
         message_ids: Optional[Set[str]] = None,
         since: Optional[datetime] = None,
     ) -> pd.DataFrame:
+        """
+        Extract messages from the specified folders in the IMAP account.
 
+        Parameters:
+        ----------
+        folders : List[str]
+            List of folder names from which to extract emails.
+        message_ids : Optional[Set[str]], optional
+            Set of specific Message-IDs to fetch (default is None).
+        since : Optional[datetime], optional
+            Fetch emails since this date (default is None).
+
+        Returns:
+        -------
+        pd.DataFrame
+            DataFrame containing parsed email information.
+        """
         emails_list = []
         start_time = time.time()
         found_message_ids: Set[str] = set()
@@ -91,6 +137,19 @@ class IMAPExtractor:
         return emails_df
 
     def fetch_emails_by_message_ids(self, message_ids: Set[str]) -> Tuple[List[Dict[str, Any]], Set[str]]:
+        """
+        Fetch emails based on specific Message-IDs.
+
+        Parameters:
+        ----------
+        message_ids : Set[str]
+            Set of specific Message-IDs to fetch.
+
+        Returns:
+        -------
+        Tuple[List[Dict[str, Any]], Set[str]]
+            A tuple with a list of email data and a set of found Message-IDs.
+        """
         fetched_emails = []
         found_message_ids = set()
 
@@ -114,6 +173,19 @@ class IMAPExtractor:
         return fetched_emails, found_message_ids
 
     def fetch_emails_since_date(self, since: datetime) -> List[Dict[str, Any]]:
+        """
+        Fetch emails since a specific date.
+
+        Parameters:
+        ----------
+        since : datetime
+            Date from which to fetch emails.
+
+        Returns:
+        -------
+        List[Dict[str, Any]]
+            A list of fetched email data.
+        """
         fetched_emails = []
         date_string = since.strftime("%d-%b-%Y")  # Format date as "01-Jan-2023"
 
@@ -133,6 +205,19 @@ class IMAPExtractor:
         return fetched_emails
 
     def fetch_and_parse_email(self, email_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch and parse a single email by its ID.
+
+        Parameters:
+        ----------
+        email_id : str
+            The email ID to fetch.
+
+        Returns:
+        -------
+        Optional[Dict[str, Any]]
+            Parsed email data or None if an error occurred.
+        """
         try:
             result, msg_data = self.imap.fetch(email_id, "(RFC822)")
             if result == "OK" and isinstance(msg_data[0], tuple):
@@ -144,6 +229,19 @@ class IMAPExtractor:
         return None
 
     def parse_email(self, email: email.message.Message) -> Dict[str, Any]:
+        """
+        Parse an email message and extract relevant information.
+
+        Parameters:
+        ----------
+        email : email.message.Message
+            The email message to parse.
+
+        Returns:
+        -------
+        Dict[str, Any]
+            A dictionary containing parsed email metadata, body, and addresses.
+        """
         # Metadata
         from_name = decode_str(email["From"].split("<")[0])
         subject = decode_str(email["Subject"])

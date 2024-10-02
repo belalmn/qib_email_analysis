@@ -28,6 +28,14 @@ class ChromaManager:
     def __init__(
         self, collection_name: str, path: str = "../../data/chroma", model_name: str = "all-MiniLM-L6-v2"
     ):
+        """
+        Initialize the ChromaManager.
+
+        Args:
+            collection_name (str): The name of the Chroma collection to create or access.
+            path (str, optional): The path to store the Chroma collection. Defaults to "../../data/chroma".
+            model_name (str, optional): The name of the sentence transformer model to use. Defaults to "all-MiniLM-L6-v2".
+        """
         settings = Settings()
         settings.allow_reset = True
         self.client = chromadb.PersistentClient(path=path, settings=settings)
@@ -36,6 +44,14 @@ class ChromaManager:
         )
 
     def add_documents_from_df(self, df: pd.DataFrame):
+        """
+        Add a dataframe of preprocessed documents to the Chroma collection.
+
+        The dataframe should contain at least two columns: "clean_text" and "message_id".
+
+        Args:
+            df (pd.DataFrame): The dataframe containing the preprocessed documents.
+        """
         documents = [str(doc) for doc in df["clean_text"].tolist()]
         self.collection.add(
             documents=documents,
@@ -44,6 +60,9 @@ class ChromaManager:
         )
 
     def drop_collection(self) -> None:
+        """
+        Resets the Chroma collection, dropping all of its documents.
+        """
         self.client.reset()
 
     def populate_embeddings(self, df: pd.DataFrame) -> pd.DataFrame:

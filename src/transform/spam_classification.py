@@ -22,16 +22,6 @@ Please read the following message and classify it as either "spam" or "ham" base
 """
 
 
-# def classify_spam_messages(df: pd.DataFrame, llm_invoker: LLMInvoker) -> pd.DataFrame:
-#     def _classify_message(message: str) -> bool:
-#         prompt = f"{TEMPLATE}\n\nMessage: {message}\n\nClassification:"
-#         result = llm_invoker.invoke_llm(prompt)
-#         return "spam" in result and "ham" not in result
-
-#     df["is_spam"] = df["clean_text"].progress_apply(lambda x: _classify_message(str(x)))
-#     return df[["message_id", "is_spam"]]
-
-
 def classify_spam_messages_with_llm(df: pd.DataFrame, llm_invoker: LLMInvoker) -> pd.DataFrame:
     df.loc[:, "prompt"] = df["clean_text"].apply(
         lambda x: f"{TEMPLATE}\n\nMessage: {x}\n\nClassification:"
