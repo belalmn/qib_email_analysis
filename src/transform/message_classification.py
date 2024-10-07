@@ -38,6 +38,7 @@ category_classifier = transformers.pipeline(
     device="cuda" if torch.cuda.is_available() else "cpu",
 )
 
+# 0.09 is equivalent to 90% confidence
 THRESHOLD = 0.09
 
 

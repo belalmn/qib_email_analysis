@@ -1,5 +1,16 @@
 # QIB Email Analytics Project
 
+## Table of Contents
+- [Project Description](#project-description)
+- [Project Structure](#project-structure)
+- [Pipeline Overview](#pipeline-overview)
+  - [Extraction Workflow](#extraction-workflow)
+  - [Transformation Workflow](#transformation-workflow)
+  - [Loading Workflow](#loading-workflow)
+- [LLM Usage in the Project](#llm-usage-in-the-project)
+  - [LLM Invoker Module](#llm-invoker-module)
+  - [LLM-Powered Features](#llm-powered-features)
+
 ## Project Description
 
 The **Email Analysis ETL Pipeline** is a Python-based project developed for Qatar Islamic Bank (QIB). The bank manages over 5,000 emails per month through their public-facing email, `info@qib.com.qa`, but faces challenges in manually processing and analyzing these emails due to the high volume and limited resources. The project addresses these challenges by automating the extraction, transformation, and analysis of the emails, utilizing a combination of traditional data analysis techniques and cutting-edge large language models (LLMs).
